@@ -4,7 +4,7 @@ import os
 
 from django.core.exceptions import ImproperlyConfigured
 
-from .base import *  # noqa: F401,F403
+from .base import *  # noqa: F403
 from .base import ALLOWED_HOSTS, BASE_DIR, SECRET_KEY
 
 DEBUG = False

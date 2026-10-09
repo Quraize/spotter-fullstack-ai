@@ -156,7 +156,14 @@ Live results (truck mode, `departAt` = next day 08:00, `maxAlternatives=4`):
   and `npm run build` all pass.
 - Dev note: port 5173 is occupied by another process on this machine, so run Vite with `--port 5174` here.
 
-### Phase 2 — Core domain logic, test-first (the 40% block)
+### Phase 2 — Core domain logic, test-first (the 40% block) — DONE 2026-10-10, gate passed
+Delivered in `backend/routing/` (`risk.py`, `sampling.py`, `aggregate.py`, `recommend.py`) with 108 unit
+tests written before the code (red → green per module). Live smoke test on Chicago → Denver (3 real TomTom
+routes + one Open-Meteo batch of 143 checkpoints): haversine mileage within 0.2% of TomTom's, interpolated
+final ETA equals TomTom's total travel time, 10K-point routes simplify to ~600 points at 0.0005°.
+Phase 3 note: send `departAt` with an explicit UTC offset; the smoke script relied on TomTom's
+origin-timezone default.
+
 Pure Python, no network:
 - `risk.py`: threshold tables (wind/rain/snow), level enum, `classify_checkpoint(wind, rain, snow, load_lb)` with
   load rules, human-readable reason string.

@@ -1,5 +1,6 @@
 -r requirements.txt
 pytest>=8,<10
 pytest-django>=4.9,<5
+ruff>=0.14,<1
 # Lets Python use the OS certificate store (needed on machines behind TLS-inspecting proxies).
 truststore>=0.10,<1
