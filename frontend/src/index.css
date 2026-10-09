@@ -1,0 +1,23 @@
+:root {
+  --bg: #ffffff;
+  --text: #1f2328;
+  --text-muted: #59636e;
+  --border: #d9dee3;
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  font: 15px/1.45 var(--sans);
+  color: var(--text);
+  background: var(--bg);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
