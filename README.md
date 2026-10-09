@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phase 1 of 8: repository scaffold. See `docs/PLAN.md` for what each phase delivers.
+Phase 2 of 8 complete: scaffold plus tested domain logic (risk rules, checkpoint sampling, aggregation, recommendation). See `docs/PLAN.md` for what each phase delivers.
 
 ## Stack
 
