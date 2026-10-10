@@ -1,0 +1,19 @@
+# Both Dockerfiles use the repository root as build context; keep the context small and secret-free.
+.git
+.env
+.env.*
+!.env.example
+docs
+deploy/*.md
+**/__pycache__
+**/*.pyc
+backend/.venv
+backend/.pytest_cache
+backend/.cache
+backend/db.sqlite3
+frontend/node_modules
+frontend/dist
+frontend/.vite
+**/*.log
+.vscode
+.idea

@@ -13,6 +13,8 @@ if SECRET_KEY == "dev-only-insecure-secret-key":
     raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set in production.")
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set in production.")
+# The Docker healthcheck calls the API over loopback from inside the container.
+ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, "127.0.0.1", "localhost"]))
 
 # File-based cache so every gunicorn worker shares cached provider responses.
 CACHES = {

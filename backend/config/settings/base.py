@@ -29,11 +29,14 @@ INSTALLED_APPS = [
     "api",
 ]
 
+# No sessions, cookies or forms: the API is stateless JSON, so CSRF and auth middleware are not loaded.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+X_FRAME_OPTIONS = "DENY"
 
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"

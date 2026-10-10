@@ -257,10 +257,22 @@ Scope kept to the edge cases listed below; no new features. Test-first additions
 
 Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxlint/build clean.
 
-### Phase 7 — Deployment to your server
-- Dockerfiles (backend: gunicorn; frontend: static build), `docker-compose.yml` (nginx serves static + proxies
-  `/api`), `.env` on the server, `deploy.sh` (pull, build, up, migrate, collectstatic).
-- Gate: `http://<server-ip>/` serves the app and a real plan completes from an outside network.
+### Phase 7 — Deployment to your server — BUILT 2026-10-10, server gate pending
+- `deploy/backend.Dockerfile` (python:3.12-slim, gunicorn 2 workers × 4 threads, 120 s timeout, non-root,
+  healthcheck on `/api/health`), `deploy/frontend.Dockerfile` (node build stage → nginx:alpine),
+  `deploy/nginx.conf` (static + `/api/` proxy with 120 s read timeout, gzip, immutable `/assets/`, SPA fallback),
+  `docker-compose.yml` (named volume for the shared provider cache, `web` waits for a healthy `backend`,
+  `WEB_PORT` override), `deploy/deploy.sh` (checks `.env`, pull, build, up, migrate, smoke test) and
+  `deploy/smoke.sh` (page, health, one real plan). No `collectstatic`: the API serves no static files.
+- Production settings tested (`config/tests/test_prod_settings.py`): refuse the dev secret or an empty host list,
+  shared file cache from `DJANGO_CACHE_DIR`, loopback hosts always allowed for the container healthcheck.
+  `deploy/deploy.sh` refuses a missing or short (< 50 chars) `DJANGO_SECRET_KEY`. Clickjacking middleware and
+  nosniff/frame/referrer headers added (Django and nginx). `manage.py check --deploy` then reports only W003
+  (no CSRF middleware: the API is stateless JSON with no cookies) and W004/W008 (HSTS and SSL redirect: plain
+  HTTP on an IP by design, A14).
+- Local Docker is not available on the dev machine (WSL disk missing), so the images were not built here.
+- Gate (pending the server): `http://<server-ip>/` serves the app and `deploy/smoke.sh` plans a real trip from
+  an outside network.
 
 ### Phase 8 — Documentation and walkthrough
 - README: overview, architecture diagram, how risk and recommendation are computed, assumptions A1–A14, API contract,

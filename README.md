@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phase 5 of 8 complete: tested domain logic, provider clients and `POST /api/plan`, plus the React map UI with the form, route cards, checkpoint markers and popups, and the weather heatmap with its 0–48 h forecast slider. See `docs/PLAN.md` for what each phase delivers.
+Phases 0–7 complete: tested domain logic, provider clients and `POST /api/plan`; the React map UI with form, route cards, checkpoints, popups and the 0–48 h weather heatmap; hardening with a ticked QA checklist (`docs/QA.md`); and a Docker Compose deployment with a one-command deploy script. See `docs/PLAN.md` for what each phase delivers.
 
 ## Stack
 
@@ -177,15 +177,45 @@ uses (`src/lib/`) are unit-tested.
 
 Port 5173 is Vite's default; if it is taken, `npm run dev -- --port 5174`.
 
+## Deployment
+
+The app ships as two containers behind one port: `web` (nginx serving the built frontend and proxying `/api`
+to the backend) and `backend` (gunicorn running Django with the production settings). Provider responses are
+cached in a named volume shared by all gunicorn workers. Everything is in `docker-compose.yml` and `deploy/`.
+
+Server prerequisites: Linux with Docker Engine and the compose plugin (on Ubuntu/Debian:
+`curl -fsSL https://get.docker.com | sh`), `git`, port 80 reachable. No domain is needed; the app is served over
+plain HTTP on the server's IP.
+
+First deployment on the server:
+
+```bash
+git clone <repo-url> spotter && cd spotter
+cp .env.example .env
+# edit .env: TOMTOM_API_KEY, DJANGO_SECRET_KEY (python3 -c "import secrets; print(secrets.token_urlsafe(50))"),
+#            DJANGO_ALLOWED_HOSTS=<server-ip>
+./deploy/deploy.sh --no-pull
+```
+
+Every later release: `./deploy/deploy.sh` (pulls `main`, rebuilds both images, restarts the stack, runs
+migrations, then runs `deploy/smoke.sh`, which loads the page, checks `/api/health` and plans a real trip).
+From a laptop: `ssh user@server 'cd spotter && ./deploy/deploy.sh'`. The smoke test also works remotely:
+`./deploy/smoke.sh http://<server-ip>`.
+
+Operations: `docker compose logs -f backend` for plan timings and provider errors; `docker compose ps` for
+health (both containers have healthchecks); `docker compose down` to stop. Set `WEB_PORT` in `.env` to listen on a
+port other than 80. Adding HTTPS later means putting a TLS-terminating proxy (or Caddy) in front of `web` and setting
+`SECURE_PROXY_SSL_HEADER` in `config/settings/prod.py`; nothing else changes.
+
 ## Repository layout
 
 ```
 backend/
   config/      Django project: settings (base/dev/prod), urls, wsgi
   api/         HTTP layer: views, serializers, URL routes
-  routing/     Pure domain logic: risk rules, checkpoint sampling, recommendation (Phase 2)
-  providers/   TomTom and Open-Meteo clients (Phase 3)
+  routing/     Pure domain logic: risk rules, checkpoint sampling, recommendation
+  providers/   TomTom and Open-Meteo clients
 frontend/      Vite + React + TypeScript app
-deploy/        Docker Compose, nginx, deploy script (Phase 7)
+deploy/        Dockerfiles, nginx.conf, deploy.sh, smoke.sh (docker-compose.yml is at the root)
 docs/          Assessment PDF, plan, QA checklist, Loom script
 ```
