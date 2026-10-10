@@ -247,7 +247,7 @@ plain HTTP on the server's IP.
 First deployment on the server:
 
 ```bash
-git clone <repo-url> spotter && cd spotter
+git clone https://github.com/Quraize/spotter-fullstack-ai.git spotter && cd spotter
 cp .env.example .env
 # edit .env: TOMTOM_API_KEY, DJANGO_SECRET_KEY (python3 -c "import secrets; print(secrets.token_urlsafe(50))"),
 #            DJANGO_ALLOWED_HOSTS=<server-ip>
