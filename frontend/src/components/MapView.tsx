@@ -1,7 +1,13 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import type { FeatureCollection } from 'geojson'
-import { setWorkerUrl, type CircleLayerSpecification, type LineLayerSpecification } from 'maplibre-gl'
+import {
+  setWorkerUrl,
+  type CircleLayerSpecification,
+  type ExpressionSpecification,
+  type HeatmapLayerSpecification,
+  type LineLayerSpecification,
+} from 'maplibre-gl'
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -18,6 +24,14 @@ import {
 import type { Plan } from '../api/types'
 import { formatDateTime } from '../lib/format'
 import { checkpointFeatures, planBounds, routeFeatures, type CheckpointProps } from '../lib/geojson'
+import {
+  HEATMAP_INTENSITY,
+  clampHour,
+  heatmapColorExpression,
+  heatmapFeatures,
+  heatmapRadiusExpression,
+  heatmapWeightExpression,
+} from '../lib/heatmap'
 import { LEVELS, LEVEL_BY_KEY, levelColorExpression } from '../lib/risk'
 
 // Free vector tiles, no key, no request limits: https://openfreemap.org
@@ -65,12 +79,19 @@ const checkpointPaint: CircleLayerSpecification['paint'] = {
   'circle-stroke-opacity': ['case', ['get', 'selected'], 1, 0.55],
 }
 
+// Colour ramps never change, so build them once.
+const heatmapColors = Object.fromEntries(LEVELS.map((l) => [l.key, heatmapColorExpression(l)]))
+
 const EMPTY: FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 interface Props {
   plan: Plan | null
   selectedId: string | null
   onSelect: (id: string) => void
+  /** Forecast hour after departure (0-48) shown by the heatmap. */
+  hour: number
+  showHeatmap: boolean
+  showCheckpoints: boolean
 }
 
 interface Hovered extends CheckpointProps {
@@ -78,7 +99,7 @@ interface Hovered extends CheckpointProps {
   lat: number
 }
 
-export function MapView({ plan, selectedId, onSelect }: Props) {
+export function MapView({ plan, selectedId, onSelect, hour, showHeatmap, showCheckpoints }: Props) {
   const mapRef = useRef<MapRef>(null)
   const [hovered, setHovered] = useState<Hovered | null>(null)
   const [cursor, setCursor] = useState<string>('grab')
@@ -88,6 +109,13 @@ export function MapView({ plan, selectedId, onSelect }: Props) {
     [plan, selectedId],
   )
   const checkpoints = useMemo(() => (plan ? checkpointFeatures(plan.routes, selectedId) : EMPTY), [plan, selectedId])
+  const heatmap = useMemo(() => (plan ? heatmapFeatures(plan.heatmap) : EMPTY), [plan])
+  const heatmapRadius = useMemo<ExpressionSpecification | number>(() => {
+    const bounds = plan ? planBounds(plan.routes) : null
+    if (!plan || !bounds) return 10
+    return heatmapRadiusExpression(plan.heatmap.interval_miles, (bounds[0][1] + bounds[1][1]) / 2)
+  }, [plan])
+  const heatmapHour = clampHour(hour, plan ? plan.heatmap.hours.length - 1 : 0)
 
   useEffect(() => {
     if (!plan) return
@@ -143,8 +171,26 @@ export function MapView({ plan, selectedId, onSelect }: Props) {
         <Layer id="routes-line" type="line" layout={lineLayout} paint={routeLinePaint} />
       </Source>
 
+      <Source id="heatmap" type="geojson" data={heatmap}>
+        {LEVELS.map((level) => (
+          <Layer
+            key={level.key}
+            id={`heatmap-${level.key}`}
+            type="heatmap"
+            beforeId="routes-casing"
+            layout={{ visibility: showHeatmap ? 'visible' : 'none' }}
+            paint={heatmapPaint(level.key, heatmapWeightExpression(heatmapHour, level.value), heatmapRadius)}
+          />
+        ))}
+      </Source>
+
       <Source id="checkpoints" type="geojson" data={checkpoints}>
-        <Layer id="checkpoints" type="circle" paint={checkpointPaint} />
+        <Layer
+          id="checkpoints"
+          type="circle"
+          layout={{ visibility: showCheckpoints ? 'visible' : 'none' }}
+          paint={checkpointPaint}
+        />
       </Source>
 
       {plan && (
@@ -181,6 +227,19 @@ export function MapView({ plan, selectedId, onSelect }: Props) {
   )
 }
 
+function heatmapPaint(
+  levelKey: string,
+  weight: ExpressionSpecification,
+  radius: ExpressionSpecification | number,
+): HeatmapLayerSpecification['paint'] {
+  return {
+    'heatmap-weight': weight,
+    'heatmap-color': heatmapColors[levelKey],
+    'heatmap-radius': radius,
+    'heatmap-intensity': HEATMAP_INTENSITY,
+  }
+}
+
 function CheckpointDetails({ checkpoint }: { checkpoint: CheckpointProps }) {
   const level = LEVEL_BY_KEY[checkpoint.level]
   return (
@@ -212,7 +271,7 @@ function CheckpointDetails({ checkpoint }: { checkpoint: CheckpointProps }) {
 function Legend() {
   return (
     <div className="legend" aria-label="Legend">
-      <div className="legend__title">Checkpoint risk</div>
+      <div className="legend__title">Risk level</div>
       {LEVELS.map((l) => (
         <div key={l.key} className="legend__row">
           <span className="legend__dot" style={{ background: l.color }} />
@@ -225,7 +284,11 @@ function Legend() {
       <div className="legend__row legend__row--lines">
         <span className="legend__line" style={{ background: OTHER_COLOR }} /> other routes
       </div>
-      <div className="legend__hint">Hover a checkpoint for ETA and weather.</div>
+      <div className="legend__hint">
+        Dots: risk at each checkpoint's ETA (hover for details).
+        <br />
+        Shading: forecast risk at the slider time.
+      </div>
     </div>
   )
 }

@@ -49,6 +49,25 @@
   .map-area {
     height: 55vh;
   }
+
+  /* Keep the small map usable: legend as one wrapping row, no hint text. */
+  .legend {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    right: 12px;
+    bottom: 24px;
+    padding: 8px 10px;
+  }
+
+  .legend__title,
+  .legend__hint {
+    display: none;
+  }
+
+  .legend__row--lines {
+    margin-top: 0;
+  }
 }
 
 /* --- Form ------------------------------------------------------------ */
@@ -406,4 +425,75 @@ button.primary:disabled {
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   padding-top: 6px;
+}
+
+/* --- Heatmap controls ------------------------------------------------ */
+
+.heatmap-controls {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 56px; /* clear of the navigation control */
+  max-width: 640px;
+  background: rgb(255 255 255 / 94%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+}
+
+.heatmap-controls__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.heatmap-controls__label strong {
+  font-weight: 650;
+}
+
+.heatmap-controls__offset {
+  color: var(--text-muted);
+}
+
+.heatmap-controls__toggles {
+  display: flex;
+  gap: 12px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle input {
+  margin: 0;
+}
+
+.heatmap-controls__slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.heatmap-controls__slider:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.heatmap-controls__ticks {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: 11px;
 }

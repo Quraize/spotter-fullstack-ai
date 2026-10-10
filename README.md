@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phase 4 of 8 complete: tested domain logic, provider clients and `POST /api/plan`, plus the React map UI with the form, route cards, checkpoint markers and popups. See `docs/PLAN.md` for what each phase delivers.
+Phase 5 of 8 complete: tested domain logic, provider clients and `POST /api/plan`, plus the React map UI with the form, route cards, checkpoint markers and popups, and the weather heatmap with its 0–48 h forecast slider. See `docs/PLAN.md` for what each phase delivers.
 
 ## Stack
 
@@ -58,6 +58,21 @@ average risk, then shortest travel time. Because No Travel is the top of the PDF
 compared on No Travel miles before those four criteria, and a route with any No Travel checkpoint is never
 recommended. If every route has No Travel conditions the app says so and recommends none. Miles are
 compared at 0.1-mile precision and average risk at 0.01 so floating-point noise never decides a tie.
+
+## The map
+
+- **Routes.** All three routes are drawn; the selected one is blue, the others grey. Clicking a route line, a checkpoint
+  or a route card selects it.
+- **Checkpoints** are dots coloured by the risk level at that checkpoint's ETA. Hovering shows the ETA, wind and gusts,
+  rain, snow, and the rule that set the level.
+- **Weather heatmap.** The shading along the corridor is the forecast risk level, for this load, at the time chosen on the
+  0–48 h slider (absolute time shown, hour 0 = departure). It uses the same per-checkpoint hourly forecasts the planner
+  already fetched, so moving the slider costs no network call. One MapLibre heatmap layer per risk level is drawn rather
+  than one layer with a density ramp: a density ramp adds overlapping blobs together, so two nearby Moderate
+  checkpoints would render as High. Per level, density saturates at that level's colour and the layers stack worst on
+  top, so the shading at a checkpoint always matches its popup level at the matching hour. The slider only swaps which
+  hour property the layers read, throttled to one update per animation frame. Heatmap and checkpoints can each be
+  hidden.
 
 ## API
 
@@ -142,7 +157,9 @@ npm run dev
 ```
 
 Run backend tests from `backend/` with `pytest`, and frontend tests from `frontend/` with `npm test`
-(`npm run build` also type-checks, `npm run lint` runs oxlint).
+(`npm run build` also type-checks, `npm run lint` runs oxlint). MapLibre needs WebGL, so the map itself is exercised
+in a real headless Chromium during each phase's gate rather than in jsdom; the pure data and expression builders it
+uses (`src/lib/`) are unit-tested.
 
 Port 5173 is Vite's default; if it is taken, `npm run dev -- --port 5174`.
 

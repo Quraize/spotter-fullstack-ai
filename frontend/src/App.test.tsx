@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,7 +7,15 @@ import { ApiError } from './api/client'
 import { planFixture, planWith } from './test/fixtures/plan'
 
 vi.mock('./components/MapView', () => ({
-  MapView: (props: { selectedId: string | null }) => <div data-testid="map" data-selected={props.selectedId ?? ''} />,
+  MapView: (props: { selectedId: string | null; hour: number; showHeatmap: boolean; showCheckpoints: boolean }) => (
+    <div
+      data-testid="map"
+      data-selected={props.selectedId ?? ''}
+      data-hour={props.hour}
+      data-heatmap={String(props.showHeatmap)}
+      data-checkpoints={String(props.showCheckpoints)}
+    />
+  ),
 }))
 
 vi.mock('./api/client', async () => {
@@ -68,5 +76,52 @@ describe('App', () => {
     render(<App />)
     await user.click(screen.getByRole('button', { name: /plan routes/i }))
     await waitFor(() => expect(screen.getByText(/only 2 distinct routes/i)).toBeInTheDocument())
+  })
+
+  it('shows the heatmap controls only once a plan exists', async () => {
+    postPlanMock.mockResolvedValue(planFixture)
+    const user = userEvent.setup()
+    render(<App />)
+    expect(screen.queryByRole('slider', { name: /forecast hour/i })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /plan routes/i }))
+    expect(await screen.findByRole('slider', { name: /forecast hour/i })).toHaveValue('0')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-hour', '0')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-heatmap', 'true')
+    expect(screen.getByTestId('map')).toHaveAttribute('data-checkpoints', 'true')
+  })
+
+  it('passes the slider hour to the map, throttled to animation frames', async () => {
+    postPlanMock.mockResolvedValue(planFixture)
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /plan routes/i }))
+    const slider = await screen.findByRole('slider', { name: /forecast hour/i })
+    fireEvent.change(slider, { target: { value: '12' } })
+    expect(slider).toHaveValue('12')
+    await waitFor(() => expect(screen.getByTestId('map')).toHaveAttribute('data-hour', '12'))
+  })
+
+  it('resets the slider to departure for a new plan', async () => {
+    postPlanMock.mockResolvedValue(planFixture)
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /plan routes/i }))
+    const slider = await screen.findByRole('slider', { name: /forecast hour/i })
+    fireEvent.change(slider, { target: { value: '30' } })
+    await waitFor(() => expect(screen.getByTestId('map')).toHaveAttribute('data-hour', '30'))
+    await user.click(screen.getByRole('button', { name: /plan routes/i }))
+    await waitFor(() => expect(screen.getByRole('slider', { name: /forecast hour/i })).toHaveValue('0'))
+  })
+
+  it('lets the driver hide the heatmap or the checkpoints', async () => {
+    postPlanMock.mockResolvedValue(planFixture)
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /plan routes/i }))
+    await screen.findByRole('slider', { name: /forecast hour/i })
+    await user.click(screen.getByRole('checkbox', { name: /heatmap/i }))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-heatmap', 'false')
+    await user.click(screen.getByRole('checkbox', { name: /checkpoints/i }))
+    expect(screen.getByTestId('map')).toHaveAttribute('data-checkpoints', 'false')
   })
 })

@@ -211,10 +211,30 @@ map canvas is blank.
   badge, reason text; clicking a card focuses that route.
 - Gate: manual check on 3 real trips; interactions stay smooth with ~100 checkpoints per route.
 
-### Phase 5 — Heatmap and 0–48 h slider
-- MapLibre heatmap layer over corridor points; `heatmap-weight` = `['get', 'h<hour>']`; the slider changes only the
-  expression (no refetch), throttled with requestAnimationFrame; shows absolute time; checkpoint layer can be toggled.
-- Gate: dragging the slider is visibly smooth; levels on the map agree with the checkpoint popups at matching hours.
+### Phase 5 — Heatmap and 0–48 h slider — DONE 2026-10-10, gate passed
+Delivered test-first: 30 new Vitest tests (heatmap GeoJSON shaping, hour property/clamping, MapLibre weight,
+colour-ramp and zoom-scaled radius expressions, the frame-throttle hook, the slider/toggle controls, and the app
+wiring) for 72 in total, plus a Playwright gate against the live backend.
+
+Design change from the plan above: **one MapLibre heatmap layer per risk level** instead of a single layer with
+`heatmap-weight = level`. A single density ramp adds overlapping kernels, so two nearby Moderate checkpoints would
+render as High; with one layer per level a point only feeds the layer of its own level, density saturates at that
+level's colour (`heatmap-intensity` = sqrt(2π) makes an isolated point's centre density exactly 1), and layers stack
+worst-on-top. Blob radius is a zoom-exponential expression sized to one sampling interval on the ground at the
+trip's latitude, so the band width follows the 10/25/50 mi choice. The slider only swaps the `h<hour>` property
+the five weight expressions read; React commits the hour at most once per animation frame and the label follows
+every input event.
+
+Gate results (Chicago → Denver, 25 mi, 143 checkpoints, 49 hours):
+- API: 143/143 checkpoints have the same level as the heatmap point at their ETA hour (0 beyond 48 h).
+- Rendered: with the dots hidden, canvas pixels around 7 sampled points (Low, Moderate and Severe at their hours)
+  classify as the expected level colour, 7/7.
+- Smoothness: headless SwiftShader renders every one of the 49 hours during a 0→48 drag at ~90 ms/frame
+  (software GL; the heatmap layers cost ~50 ms of that). On the real GPU (headed Chromium, Intel UHD 630) a
+  five-layer restyle reaches the next painted frame in 16 ms average, 23 ms max; `idle` in 36 ms average.
+  Keyboard stepping (arrows, Home) works. Production preview behaves the same.
+- Controls: absolute time label ("Forecast risk at Sat, Oct 11, 01:00 (+5 h after departure)"), slider disabled when
+  the heatmap is hidden, checkpoints toggle, legend explains dots vs shading; compact legend on narrow screens.
 
 ### Phase 6 — Hardening and QA
 - Edge cases: same-city trips, < 3 routes, departure in the past, ETAs beyond the 16-day horizon, provider down,
