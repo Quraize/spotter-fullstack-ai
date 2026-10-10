@@ -274,7 +274,7 @@ Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxl
 - Gate (pending the server): `http://<server-ip>/` serves the app and `deploy/smoke.sh` plans a real trip from
   an outside network.
 
-### Phase 8 — Documentation and walkthrough — DONE 2026-10-10, gate passed; push pending the repo URL
+### Phase 8 — Documentation and walkthrough — DONE 2026-10-10, gate passed, pushed
 - README: overview, architecture diagram, how risk and recommendation are computed, assumptions A1–A14, API contract,
   local setup, deployment, limitations.
 - `docs/LOOM-SCRIPT.md`: 5–10 min outline (inputs → routes → checkpoints → recommendation → heatmap slider → code tour).
@@ -294,8 +294,8 @@ Done 2026-10-10 (TDD):
   `/api/health` through the Vite proxy, a cold Chicago→Denver plan in 10.4 s (3 routes, no warnings), and headless
   Chromium planning the Loom demo trip (3 cards, "Recommended: Route 1", 408 checkpoint and 394 heatmap features
   rendered, slider to +24 h, no console errors).
-- Push: no remote yet; waits for the GitHub repo URL. Then `git remote add origin <url> && git push -u origin main`
-  and fill `<repo-url>` in the README's Deployment section.
+- Push: `main` pushed 2026-10-10 to https://github.com/Quraize/spotter-fullstack-ai (public), README Deployment
+  section points at it.
 
 ### Optional (only after Phase 8, if time remains)
 - Persist plans (`TripPlan` model, `GET /api/plans/<id>`) for shareable links.
