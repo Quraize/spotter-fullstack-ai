@@ -274,12 +274,28 @@ Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxl
 - Gate (pending the server): `http://<server-ip>/` serves the app and `deploy/smoke.sh` plans a real trip from
   an outside network.
 
-### Phase 8 — Documentation and walkthrough
+### Phase 8 — Documentation and walkthrough — DONE 2026-10-10, gate passed; push pending the repo URL
 - README: overview, architecture diagram, how risk and recommendation are computed, assumptions A1–A14, API contract,
   local setup, deployment, limitations.
 - `docs/LOOM-SCRIPT.md`: 5–10 min outline (inputs → routes → checkpoints → recommendation → heatmap slider → code tour).
 - Push to GitHub.
 - Gate: fresh clone + README steps work end to end.
+
+Done 2026-10-10 (TDD):
+- `backend/api/tests/test_documentation.py` (15 tests) pins the docs to the code: every API error code and its
+  HTTP status, the README request example against the serializer (fields, limits, intervals), the threshold table
+  and load rules against `routing/risk.py`, assumptions A1–A14 against this plan, every environment variable the
+  settings read against `.env.example` (caught the missing `DJANGO_CACHE_DIR`), the deploy script's required keys
+  against the Deployment section, and the Loom script's section order and 5–10 min total. Written red first; the
+  README gained Architecture, Limitations and Assumptions sections and `docs/LOOM-SCRIPT.md` (8:45) to turn them green.
+- Gate: fresh `git clone` into a scratch directory, then the README's steps verbatim: venv + `requirements-dev.txt`,
+  `migrate`, `pytest` (216 passed), `npm install`, `npm test` (77 passed), `npm run build`, `npm run lint`, then
+  `runserver` + `npm run dev -- --port 5174` (5173 was taken by another project, as the README anticipates):
+  `/api/health` through the Vite proxy, a cold Chicago→Denver plan in 10.4 s (3 routes, no warnings), and headless
+  Chromium planning the Loom demo trip (3 cards, "Recommended: Route 1", 408 checkpoint and 394 heatmap features
+  rendered, slider to +24 h, no console errors).
+- Push: no remote yet; waits for the GitHub repo URL. Then `git remote add origin <url> && git push -u origin main`
+  and fill `<repo-url>` in the README's Deployment section.
 
 ### Optional (only after Phase 8, if time remains)
 - Persist plans (`TripPlan` model, `GET /api/plans/<id>`) for shareable links.
