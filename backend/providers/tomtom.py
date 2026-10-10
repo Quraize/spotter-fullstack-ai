@@ -76,7 +76,7 @@ class TomTomClient:
         self._raise_for_status(status, payload, what="geocoding")
         results = (payload or {}).get("results") or []
         if not results:
-            raise GeocodeNotFound(f"No location found for '{query}'", provider=PROVIDER)
+            raise GeocodeNotFound(f"No location found for '{query}' (searching {country} only).", provider=PROVIDER)
         first = results[0]
         return GeocodeResult(
             query=query,

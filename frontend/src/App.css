@@ -193,6 +193,11 @@ button.primary:disabled {
   gap: 12px;
 }
 
+.results__places {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .recommendation {
   display: flex;
   flex-direction: column;

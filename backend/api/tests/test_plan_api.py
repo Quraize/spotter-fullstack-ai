@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from rest_framework.test import APIClient
 
-from api.planner import PlanningError
+from api.planner import PlanningError, TooManyCheckpoints
 from providers.errors import GeocodeNotFound, ProviderQuotaExceeded, ProviderUnavailable, RouteNotFound
 
 TZ = timezone(timedelta(hours=-5))
@@ -155,6 +155,7 @@ def test_place_names_must_not_be_blank(client, fake_planner):
         (ProviderQuotaExceeded("quota", provider="TomTom"), 503, "provider_quota_exceeded"),
         (ProviderUnavailable("down", provider="Open-Meteo"), 503, "provider_unavailable"),
         (PlanningError("Origin and destination resolve to the same place."), 422, "invalid_trip"),
+        (TooManyCheckpoints("Too many weather locations."), 422, "too_many_checkpoints"),
     ],
 )
 def test_planner_errors_become_structured_responses(client, fake_planner, error, status, code):

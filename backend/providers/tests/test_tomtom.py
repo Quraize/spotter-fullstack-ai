@@ -108,6 +108,7 @@ def test_geocode_with_no_results_raises_geocode_not_found():
     with pytest.raises(GeocodeNotFound) as excinfo:
         client_with(respond(200, body)).geocode("Nowhereville ZZ")
     assert "Nowhereville ZZ" in str(excinfo.value)
+    assert "US only" in str(excinfo.value)  # the driver should learn why a real foreign city is "not found"
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import './App.css'
-import { ApiError, postPlan } from './api/client'
+import { ApiError, apiErrorMessage, postPlan } from './api/client'
 import type { Plan, PlanRequest } from './api/types'
 import { HeatmapControls } from './components/HeatmapControls'
 import { MapView } from './components/MapView'
@@ -31,7 +31,7 @@ export default function App() {
       setSelectedId(next.recommended_route_id ?? next.recommendation.ranked_ids[0] ?? null)
       setHour(0)
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Something went wrong while planning. Please try again.')
+      setError(e instanceof ApiError ? apiErrorMessage(e) : 'Something went wrong while planning. Please try again.')
     } finally {
       setLoading(false)
     }

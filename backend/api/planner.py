@@ -53,6 +53,15 @@ ROUTES_TTL_SECONDS = 3600
 WEATHER_TTL_SECONDS = 1800
 WEATHER_CELL_DEG = 0.05  # ~3 km; coarser than the forecast model's own grid is not
 ROUTE_TIME_BUCKET = timedelta(minutes=15)
+# Open-Meteo's free tier counts every location in a batch against its 600 calls/min, weighted by
+# forecast length (14 days = 1.0, so 16 days = 1.14): 500 locations is at most ~570 weighted calls,
+# under the limit for one plan. Deterministic (unique checkpoints, not uncached ones) so the same
+# trip always gets the same answer. A cross-country trip at 10 mi needs ~1,000 and is refused.
+MAX_WEATHER_LOCATIONS = 500
+# Fetch and cache weather in chunks: if the provider rate-limits part-way through a plan, the chunks
+# already fetched are kept, so a retry a minute later only asks for the rest.
+WEATHER_FETCH_CHUNK = 200
+FORECAST_SLACK = timedelta(minutes=30)  # a time within 30 min of the last forecast hour still counts as covered
 
 
 class PlanningError(Exception):
@@ -64,6 +73,12 @@ class PlanningError(Exception):
     def __init__(self, message: str):
         super().__init__(message)
         self.message = message
+
+
+class TooManyCheckpoints(PlanningError):
+    """The trip would need more weather locations than the free weather API allows in one plan."""
+
+    code = "too_many_checkpoints"
 
 
 @dataclass(frozen=True)
@@ -146,7 +161,7 @@ class Planner:
         routes, warnings = self._select_routes(origin, destination, req.departure_time)
         prepared = [self._prepare(route, req) for route in routes]
         forecast_days = self._forecast_days(req.departure_time, prepared)
-        forecasts = self._forecasts(prepared, forecast_days)
+        forecasts = self._forecasts(prepared, forecast_days, req.sample_interval_miles)
 
         route_payloads: list[dict[str, Any]] = []
         candidates: list[RouteCandidate] = []
@@ -164,13 +179,10 @@ class Planner:
         for payload in route_payloads:
             payload["rank"] = rank_of[payload["id"]]
 
-        if uncovered:
-            warnings.append(
-                f"{uncovered} checkpoint ETA(s) fall outside the available forecast window; "
-                "the nearest forecast hour was used."
-            )
-
         heatmap = self._heatmap(prepared, forecasts, req)
+        forecast_warning = self._forecast_warning(forecasts, req.departure_time, uncovered)
+        if forecast_warning:
+            warnings.append(forecast_warning)
         logger.info(
             "plan %s -> %s: %d routes, %d forecast days, %.2fs",
             origin.name,
@@ -281,23 +293,52 @@ class Planner:
         days = (latest.astimezone(UTC).date() - today).days + 1
         return max(1, min(MAX_FORECAST_DAYS, days))
 
-    def _forecasts(self, prepared: Sequence[_PreparedRoute], forecast_days: int) -> dict[Cell, HourlyForecast]:
+    def _forecasts(
+        self, prepared: Sequence[_PreparedRoute], forecast_days: int, interval_miles: int
+    ) -> dict[Cell, HourlyForecast]:
         """One forecast per weather cell touched by any checkpoint; only uncached cells are fetched."""
         positions: dict[Cell, LatLon] = {}
         for p in prepared:
             for s in p.checkpoints:
                 positions.setdefault(_cell(s.lat, s.lon), (s.lat, s.lon))
+        if len(positions) > MAX_WEATHER_LOCATIONS:
+            raise TooManyCheckpoints(
+                f"This trip needs weather for {len(positions)} locations at {interval_miles}-mile sampling, "
+                f"more than the {MAX_WEATHER_LOCATIONS} the weather service allows per plan. "
+                "Choose a larger sampling interval."
+            )
         cache_keys = {cell: f"weather:v2:{cell[0]:.2f}:{cell[1]:.2f}:{forecast_days}" for cell in positions}
 
         cached = self._cache.get_many(list(cache_keys.values()))
         forecasts: dict[Cell, HourlyForecast] = {cell: cached[key] for cell, key in cache_keys.items() if key in cached}
         missing = [cell for cell in positions if cell not in forecasts]
-        if missing:
-            fetched = self._weather.hourly([positions[cell] for cell in missing], forecast_days)
-            new_entries = dict(zip(missing, fetched, strict=True))
+        for start in range(0, len(missing), WEATHER_FETCH_CHUNK):
+            chunk = missing[start : start + WEATHER_FETCH_CHUNK]
+            fetched = self._weather.hourly([positions[cell] for cell in chunk], forecast_days)
+            new_entries = dict(zip(chunk, fetched, strict=True))
             forecasts.update(new_entries)
             self._cache.set_many({cache_keys[cell]: f for cell, f in new_entries.items()}, WEATHER_TTL_SECONDS)
         return forecasts
+
+    @staticmethod
+    def _forecast_warning(
+        forecasts: dict[Cell, HourlyForecast], departure: datetime, uncovered_checkpoints: int
+    ) -> str | None:
+        """Say when the forecast ends if checkpoint ETAs or slider hours fall outside it (the nearest hour is used)."""
+        end = datetime.fromtimestamp(min(f.times[-1] for f in forecasts.values()), UTC)
+        hours = [departure + timedelta(hours=h) for h in range(HEATMAP_HOURS + 1)]
+        uncovered_hours = sum(1 for when in hours if when > end + FORECAST_SLACK)
+        if not uncovered_checkpoints and not uncovered_hours:
+            return None
+        parts = []
+        if uncovered_checkpoints:
+            parts.append(f"{uncovered_checkpoints} checkpoint ETA(s)")
+        if uncovered_hours:
+            parts.append(f"{uncovered_hours} of {len(hours)} heatmap hours")
+        return (
+            f"Forecast data ends {end:%Y-%m-%d %H:%M} UTC; {' and '.join(parts)} are outside the forecast "
+            "window and use the nearest available forecast hour."
+        )
 
     @staticmethod
     def _assess_checkpoints(

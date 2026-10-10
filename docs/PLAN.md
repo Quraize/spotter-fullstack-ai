@@ -236,11 +236,26 @@ Gate results (Chicago → Denver, 25 mi, 143 checkpoints, 49 hours):
 - Controls: absolute time label ("Forecast risk at Sat, Oct 11, 01:00 (+5 h after departure)"), slider disabled when
   the heatmap is hidden, checkpoints toggle, legend explains dots vs shading; compact legend on narrow screens.
 
-### Phase 6 — Hardening and QA
-- Edge cases: same-city trips, < 3 routes, departure in the past, ETAs beyond the 16-day horizon, provider down,
-  quota exceeded, very long routes (checkpoint count), narrow/mobile layout.
-- Frontend type-check + production build; a few vitest tests for formatting/sorting helpers.
-- Gate: QA checklist in `docs/QA.md` fully ticked.
+### Phase 6 — Hardening and QA — DONE 2026-10-10, gate passed
+Scope kept to the edge cases listed below; no new features. Test-first additions (9 backend, 5 frontend tests):
+- **Forecast horizon.** One warning names the forecast's end time and counts the checkpoint ETAs and heatmap
+  hours outside it (both reuse the nearest forecast hour). Live: a departure 14 days out gets "Forecast data ends
+  2026-10-25 23:00 UTC; 15 of 49 heatmap hours are outside the forecast window…".
+- **Very long routes.** Deterministic cap of 500 unique weather locations per plan (`MAX_WEATHER_LOCATIONS`),
+  refused with 422 `too_many_checkpoints` before any quota is spent; the message says to pick a larger interval.
+  Open-Meteo counts each batched location as one call against 600/minute (confirmed live: three plans totalling
+  611 locations in a minute produced a 429 on the last chunk). Miami → Seattle: 1,009 locations at 10 mi
+  (refused), 406 at 25 mi and 205 at 50 mi (complete).
+- **Quota exceeded mid-plan.** Weather is fetched and cached per 200-location chunk, so the chunks fetched before
+  a 429 are kept and a retry a minute later only asks for the rest.
+- **Clarity.** Geocode misses say "(searching US only)"; the cards header shows what the origin and destination
+  resolved to ("From Toronto, KS to Denver, CO" for the input "Toronto, ON"); 400 validation errors show the
+  field label and message instead of "Invalid request."
+- **Confirmed already handled:** same-city trips (422), fewer than 3 routes (padding + warning; a single route is
+  ranked and recommended as "Only route available."), past or too-distant departure (400 with field message),
+  provider down (503 in 2.8 s with the reason), narrow layout (compact legend).
+
+Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxlint/build clean.
 
 ### Phase 7 — Deployment to your server
 - Dockerfiles (backend: gunicorn; frontend: static build), `docker-compose.yml` (nginx serves static + proxies

@@ -70,6 +70,22 @@ describe('App', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("No location found for 'Atlantis'")
   })
 
+  it('shows field-level messages from validation errors', async () => {
+    postPlanMock.mockRejectedValue(
+      new ApiError(400, 'validation_error', 'Invalid request.', {
+        departure_time: ['Departure must be within the next 14 days.'],
+        load_weight_lb: ['Ensure this value is less than or equal to 200000.'],
+      }),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: /plan routes/i }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Departure date & time: Departure must be within the next 14 days.')
+    expect(alert).toHaveTextContent('Load weight: Ensure this value is less than or equal to 200000.')
+    expect(alert).not.toHaveTextContent('Invalid request.')
+  })
+
   it('shows planner warnings', async () => {
     postPlanMock.mockResolvedValue(planWith({ warnings: ['The routing provider returned only 2 distinct routes for this trip.'] }))
     const user = userEvent.setup()

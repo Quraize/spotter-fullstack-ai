@@ -15,6 +15,9 @@ export function RouteCards({ plan, selectedId, onSelect }: Props) {
 
   return (
     <section className="results" aria-label="Route options">
+      <p className="results__places">
+        From <strong>{plan.inputs.origin.name}</strong> to <strong>{plan.inputs.destination.name}</strong>
+      </p>
       <div role="status" className={`recommendation ${recommended ? '' : 'recommendation--none'}`}>
         <strong>{recommended ? `Recommended: ${recommended.name}` : 'No route is recommended.'}</strong>
         <span>{plan.recommendation.reason}</span>

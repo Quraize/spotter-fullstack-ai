@@ -12,6 +12,11 @@ function setup(plan = planFixture, selectedId: string | null = 'r2') {
 }
 
 describe('RouteCards', () => {
+  it('shows the places the origin and destination resolved to', () => {
+    render(<RouteCards plan={planFixture} selectedId={null} onSelect={() => {}} />)
+    expect(screen.getByText(/from/i).closest('p')).toHaveTextContent('From Chicago, IL to Denver, CO')
+  })
+
   it('lists routes in recommendation order with their summaries', () => {
     setup()
     const cards = screen.getAllByRole('button', { name: /route \d/i })

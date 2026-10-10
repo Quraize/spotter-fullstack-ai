@@ -49,3 +49,19 @@ export async function postPlan(request: PlanRequest, signal?: AbortSignal): Prom
   }
   return body as Plan
 }
+
+// Form labels, so a 400 reads "Load weight: ..." rather than "load_weight_lb: ...".
+const FIELD_LABELS: Record<string, string> = {
+  origin: 'Origin',
+  destination: 'Destination',
+  departure_time: 'Departure date & time',
+  load_weight_lb: 'Load weight',
+  sample_interval_miles: 'Sample interval',
+}
+
+/** The text to show a driver for an API error: field messages when there are any, else the server's message. */
+export function apiErrorMessage(error: ApiError): string {
+  const entries = Object.entries(error.fields ?? {})
+  if (entries.length === 0) return error.message
+  return entries.map(([field, messages]) => `${FIELD_LABELS[field] ?? field}: ${messages.join(' ')}`).join(' ')
+}

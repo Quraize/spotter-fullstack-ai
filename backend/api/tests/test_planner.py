@@ -17,7 +17,7 @@ import pytest
 from django.core.cache import cache
 
 from api.planner import Planner, PlanningError, PlanRequest
-from providers.errors import GeocodeNotFound
+from providers.errors import GeocodeNotFound, ProviderQuotaExceeded
 from providers.openmeteo import HourlyForecast
 from providers.tomtom import GeocodeResult, RouteResult
 from routing.sampling import EARTH_RADIUS_MILES, ProgressEntry, cumulative_miles
@@ -327,3 +327,102 @@ def test_changing_the_interval_only_fetches_weather_for_new_checkpoints():
     fetched_second = {(round(lat, 5), round(lon, 5)) for lat, lon in second}
     assert fetched_second == fine_points - coarse_points  # only the checkpoints that are new at 25 mi
     assert not set(second) & set(first)
+
+
+# --- Phase 6 edge cases -----------------------------------------------------
+
+
+class ShortWeather(StubWeather):
+    """A provider whose forecast ends at the end of today, whatever was asked for."""
+
+    def hourly(self, points, forecast_days):
+        return super().hourly(points, 1)
+
+
+def test_warns_with_the_forecast_end_when_etas_and_heatmap_hours_fall_after_it():
+    plan = planner(weather=ShortWeather()).plan(request())
+    checkpoints = sum(len(r["checkpoints"]) for r in plan["routes"])
+    [warning] = [w for w in plan["warnings"] if w.startswith("Forecast data ends")]
+    assert "2026-10-10 23:00 UTC" in warning
+    assert f"{checkpoints} checkpoint ETA(s)" in warning
+    assert "49 of 49 heatmap hours" in warning
+    # Every checkpoint still gets a level: the last forecast hour is used.
+    assert all(c["level"] for r in plan["routes"] for c in r["checkpoints"])
+
+
+def test_warns_about_heatmap_hours_only_when_the_16_day_horizon_cuts_the_slider_window():
+    weather = StubWeather()
+    far = datetime(2026, 10, 24, 8, 0, tzinfo=TZ)  # 13:00 UTC, 14 days out: window ends 2026-10-25 23:00 UTC
+    plan = planner(weather=weather).plan(request(departure_time=far))
+    assert weather.calls[0][1] == 16
+    [warning] = [w for w in plan["warnings"] if w.startswith("Forecast data ends")]
+    assert "2026-10-25 23:00 UTC" in warning
+    assert "14 of 49 heatmap hours" in warning
+    assert "checkpoint" not in warning
+
+
+def test_no_forecast_warning_when_everything_is_covered():
+    plan = planner().plan(request())
+    assert not [w for w in plan["warnings"] if "forecast" in w.lower()]
+
+
+def test_trips_needing_too_many_weather_locations_are_rejected_before_fetching(monkeypatch):
+    monkeypatch.setattr("api.planner.MAX_WEATHER_LOCATIONS", 5)
+    weather = StubWeather()
+    with pytest.raises(PlanningError) as info:
+        planner(weather=weather).plan(request(sample_interval_miles=10))
+    assert info.value.code == "too_many_checkpoints"
+    assert info.value.http_status == 422
+    assert "10-mile" in info.value.message
+    assert "5" in info.value.message
+    assert weather.calls == []
+
+
+def test_coarser_sampling_stays_under_the_weather_location_cap(monkeypatch):
+    # At 50 mi the three fixture routes share origin and destination and add 4 mid-route points: 6 cells.
+    monkeypatch.setattr("api.planner.MAX_WEATHER_LOCATIONS", 6)
+    plan = planner().plan(request(sample_interval_miles=50))
+    assert len(plan["heatmap"]["points"]) == 6
+
+
+def test_single_route_is_shown_ranked_first_with_a_warning():
+    tomtom = StubTomTom([ROUTE_A])
+    plan = planner(tomtom=tomtom).plan(request())
+    assert tomtom.route_calls == [2, 4]
+    assert [r["rank"] for r in plan["routes"]] == [1]
+    assert plan["recommended_route_id"] == "r1"
+    assert plan["recommendation"]["reason"] == "Only route available."
+    assert any("only 1 distinct route" in w for w in plan["warnings"])
+
+
+class FlakyWeather(StubWeather):
+    """Fails with a rate limit on the call whose index is in `fail_on` (0-based), otherwise behaves normally."""
+
+    def __init__(self, fail_on):
+        super().__init__()
+        self.fail_on = set(fail_on)
+
+    def hourly(self, points, forecast_days):
+        index = len(self.calls)
+        if index in self.fail_on:
+            self.calls.append((list(points), forecast_days))
+            raise ProviderQuotaExceeded("Minutely API request limit exceeded", provider="Open-Meteo")
+        return super().hourly(points, forecast_days)
+
+
+def test_weather_is_fetched_and_cached_in_chunks_so_a_rate_limit_mid_plan_keeps_progress(monkeypatch):
+    monkeypatch.setattr("api.planner.WEATHER_FETCH_CHUNK", 4)
+    weather = FlakyWeather(fail_on=[1])  # second chunk hits the rate limit
+    p = planner(weather=weather)
+    with pytest.raises(ProviderQuotaExceeded):
+        p.plan(request())
+    assert len(weather.calls) == 2
+    assert len(weather.calls[0][0]) == 4
+
+    # A minute later the driver retries: the first chunk is served from cache, only the rest is fetched.
+    weather.fail_on = set()
+    plan = p.plan(request())
+    fetched_after_retry = [pts for pts, _ in weather.calls[2:]]
+    total = len(plan["heatmap"]["points"])
+    assert sum(len(pts) for pts in fetched_after_retry) == total - 4
+    assert all(len(pts) <= 4 for pts in fetched_after_retry)

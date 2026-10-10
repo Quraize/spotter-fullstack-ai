@@ -124,7 +124,7 @@ Errors are `{"error": {"code", "message", "fields"?}}`:
 | Status | Code |
 |---|---|
 | 400 | `validation_error` (with per-field messages) |
-| 422 | `geocode_not_found`, `route_not_found`, `invalid_trip` |
+| 422 | `geocode_not_found`, `route_not_found`, `invalid_trip`, `too_many_checkpoints` |
 | 502 | `provider_bad_request` |
 | 503 | `provider_unavailable`, `provider_quota_exceeded` |
 
@@ -134,6 +134,20 @@ counts every location in a batch against its 600 per minute and 10,000 per day f
 the checkpoint set itself and forecasts are cached per 3 km cell for 30 minutes. Geocodes are cached for 24 hours
 and routes for 1 hour (departure bucketed to 15 minutes). A 1,000-mile plan takes about 8 s cold and about 1.3 s
 when every provider call is cached.
+
+**Limits, stated rather than hidden.**
+
+- Geocoding is US-only (`countrySet=US`); an unknown or foreign place returns `geocode_not_found` saying so.
+- Departure must be between one hour ago and 14 days ahead. Open-Meteo forecasts reach 16 days, so a departure near
+  the end of that window can put the last slider hours, or the last checkpoints of a long trip, past the forecast's end.
+  The plan still completes using the nearest forecast hour and carries a warning that names the forecast's end time.
+- One plan may use at most 500 weather locations (unique checkpoints across the three routes). Open-Meteo counts each
+  location in a batch as a call against its 600 per minute limit, weighted by forecast length (16 days counts about
+  1.14), so 500 locations stay under the limit for one plan. A 10-mile grid on a cross-country trip needs about 1,000
+  and is refused with `too_many_checkpoints` before any quota is spent; the message says to pick a larger interval.
+  Miami to Seattle works at 25 and 50 miles.
+- Fewer than three distinct routes (an island road, a short hop) produces as many as exist plus a warning; a single
+  route is still ranked and recommended as "Only route available."
 
 ## Local development
 
