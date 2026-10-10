@@ -194,7 +194,16 @@ cache the prepared geometry per route if the UI needs it faster.
 - Gate: real plan for Chicago→Denver returns 3 routes with ETAs, levels, summary, heatmap in a few seconds; a repeat
   call is served from cache.
 
-### Phase 4 — Frontend: form, map, routes, checkpoints
+### Phase 4 — Frontend: form, map, routes, checkpoints — DONE 2026-10-10, gate passed
+Delivered test-first: 42 Vitest tests (formatting, risk metadata, GeoJSON shaping, API client, form, route cards,
+app shell with the map mocked) plus a Playwright gate that drives the real page in headless Chromium against the
+live backend: plan renders in ~1.6–2.9 s on a warm cache, cards in rank order, card click changes the selected
+route, hovering a projected checkpoint shows the popup, and the production bundle (`vite build` + `vite preview`)
+behaves the same. Stack: react-map-gl 8 on MapLibre GL 6 with OpenFreeMap positron tiles.
+Two MapLibre 6 + Vite 8 pitfalls fixed and documented in `vite.config.ts`: exclude `maplibre-gl` from dependency
+pre-bundling (dev) and import the worker explicitly with `?worker&url` + `setWorkerUrl` (build), otherwise the
+map canvas is blank.
+
 - Form (origin, destination, `datetime-local`, load weight lb, interval radio), loading/error states.
 - Map: 3 route lines (recommended emphasized, others muted), checkpoint circles colored by level (GPU layer, not
   DOM markers), hover/click popup (ETA, wind, gust, rain, snow, level, reason), legend, fit-to-bounds.

@@ -1,11 +1,21 @@
 :root {
-  --bg: #ffffff;
+  --bg: #f5f7f9;
+  --panel: #ffffff;
   --text: #1f2328;
   --text-muted: #59636e;
   --border: #d9dee3;
+  --accent: #1565c0;
+  --accent-soft: #e3effb;
+  --good: #2e7d32;
+  --bad: #c62828;
+  --warn-bg: #fff8e1;
+  --warn-border: #f9a825;
+  --error-bg: #fdecea;
+  --error-border: #c62828;
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --radius: 8px;
 
-  font: 15px/1.45 var(--sans);
+  font: 14px/1.45 var(--sans);
   color: var(--text);
   background: var(--bg);
   color-scheme: light;
@@ -18,6 +28,24 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
 }

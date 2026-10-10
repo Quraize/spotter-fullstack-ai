@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phase 3 of 8 complete: tested domain logic, TomTom and Open-Meteo clients, caching, and the `POST /api/plan` endpoint. See `docs/PLAN.md` for what each phase delivers.
+Phase 4 of 8 complete: tested domain logic, provider clients and `POST /api/plan`, plus the React map UI with the form, route cards, checkpoint markers and popups. See `docs/PLAN.md` for what each phase delivers.
 
 ## Stack
 
@@ -141,7 +141,10 @@ npm install
 npm run dev
 ```
 
-Run backend tests from `backend/` with `pytest`.
+Run backend tests from `backend/` with `pytest`, and frontend tests from `frontend/` with `npm test`
+(`npm run build` also type-checks, `npm run lint` runs oxlint).
+
+Port 5173 is Vite's default; if it is taken, `npm run dev -- --port 5174`.
 
 ## Repository layout
 
