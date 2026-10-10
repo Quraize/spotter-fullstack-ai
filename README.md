@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phases 0–7 complete: tested domain logic, provider clients and `POST /api/plan`; the React map UI with form, route cards, checkpoints, popups and the 0–48 h weather heatmap; hardening with a ticked QA checklist (`docs/QA.md`); and a Docker Compose deployment with a one-command deploy script. See `docs/PLAN.md` for what each phase delivers.
+Phases 0–8 complete: tested domain logic, provider clients and `POST /api/plan`; the React map UI with form, route cards, checkpoints, popups and the 0–48 h weather heatmap; hardening with a ticked QA checklist (`docs/QA.md`); a Docker Compose deployment with a one-command deploy script; and this documentation with the Loom outline in `docs/LOOM-SCRIPT.md`. See `docs/PLAN.md` for what each phase delivers.
 
 ## Stack
 
@@ -19,6 +19,31 @@ Phases 0–7 complete: tested domain logic, provider clients and `POST /api/plan
 | Routing & geocoding | TomTom Routing API (truck mode) and Geocoding API, called server-side |
 | Weather | Open-Meteo hourly forecast (no key) |
 | Map tiles | OpenFreeMap (no key) |
+
+## Architecture
+
+```
+Browser: React 19 + TypeScript, MapLibre GL (route lines, checkpoint dots, heatmap layers)
+   |  POST /api/plan, GET /api/health (same origin, JSON)      map tiles <-- OpenFreeMap (vector, no key)
+   v
+nginx (web container): serves the Vite build, proxies /api/ to backend:8000
+   v
+gunicorn -> Django 5.2 + DRF (backend container)
+   api/        views and serializers (validation), planner (orchestration, caching, warnings, heatmap)
+   routing/    pure domain logic: risk rules, checkpoint sampling, stretch aggregation, recommendation
+   providers/  tomtom.py (geocoding, truck routes with timing points), openmeteo.py (hourly forecasts, batched)
+      |                                        |
+      v                                        v
+   TomTom Geocoding + Routing API           Open-Meteo forecast API
+   (cached 24 h / 1 h)                      (cached 30 min per 3 km cell)
+```
+
+One request does all the work. The planner geocodes both places, asks TomTom for three distinct truck routes
+for the chosen departure, places checkpoints along each route with an ETA interpolated from TomTom's timing
+points, fetches the hourly forecast once per unique checkpoint, assesses every checkpoint at its ETA, summarises
+and ranks the routes, and builds the 49-hour heatmap from the same forecasts. The browser receives one JSON
+document and never talks to a provider, so the TomTom key stays on the server. In development Vite proxies
+`/api` to the Django dev server, so the browser sees the same single origin as in production.
 
 ## How risk and the recommendation are computed
 
@@ -90,8 +115,8 @@ compared at 0.1-mile precision and average risk at 0.01 so floating-point noise 
 }
 ```
 
-`departure_time` must carry a UTC offset and lie between one hour ago and 14 days ahead.
-`sample_interval_miles` is 10, 25 or 50. Response (abridged):
+`departure_time` must carry a UTC offset and lie between 1 hour ago and 14 days ahead. `load_weight_lb` is
+1 to 200,000 lb. `sample_interval_miles` is 10, 25 or 50. Response (abridged):
 
 ```json
 {
@@ -135,10 +160,13 @@ the checkpoint set itself and forecasts are cached per 3 km cell for 30 minutes.
 and routes for 1 hour (departure bucketed to 15 minutes). A 1,000-mile plan takes about 8 s cold and about 1.3 s
 when every provider call is cached.
 
-**Limits, stated rather than hidden.**
+## Limitations
 
-- Geocoding is US-only (`countrySet=US`); an unknown or foreign place returns `geocode_not_found` saying so.
-- Departure must be between one hour ago and 14 days ahead. Open-Meteo forecasts reach 16 days, so a departure near
+Stated rather than hidden; each one is covered by a test or a ticked check in `docs/QA.md`.
+
+- Geocoding is US-only (`countrySet=US`); an unknown place returns `geocode_not_found` saying so, and a foreign city
+  may resolve to a US namesake. The resolved names are shown above the route cards so this is visible.
+- Departure must be between 1 hour ago and 14 days ahead. Open-Meteo forecasts reach 16 days, so a departure near
   the end of that window can put the last slider hours, or the last checkpoints of a long trip, past the forecast's end.
   The plan still completes using the nearest forecast hour and carries a warning that names the forecast's end time.
 - One plan may use at most 500 weather locations (unique checkpoints across the three routes). Open-Meteo counts each
@@ -146,8 +174,37 @@ when every provider call is cached.
   1.14), so 500 locations stay under the limit for one plan. A 10-mile grid on a cross-country trip needs about 1,000
   and is refused with `too_many_checkpoints` before any quota is spent; the message says to pick a larger interval.
   Miami to Seattle works at 25 and 50 miles.
+- Two long cold-cache plans within the same minute can still exceed Open-Meteo's per-minute limit; the second gets
+  `provider_quota_exceeded` with the provider's "try again in one minute", and the chunks it already fetched are cached
+  so the retry only asks for the rest.
 - Fewer than three distinct routes (an island road, a short hop) produces as many as exist plus a warning; a single
   route is still ranked and recommended as "Only route available."
+- Route timing is cached per 15-minute departure bucket to protect the TomTom quota; checkpoint ETAs always use the
+  exact departure entered.
+- Plans are not stored. Reloading the page clears the result, and there is no shareable link (the assessment asks
+  for none).
+- The map needs WebGL. Without it the form and route cards still work, but the map area stays empty.
+
+## Assumptions
+
+Decisions taken where the assessment leaves room, numbered as in `docs/PLAN.md` so they can be challenged one by one.
+
+| # | Assumption |
+|---|---|
+| A1 | Routing is TomTom in truck mode with `departAt` set to the departure time. Load weight is not sent to the router; it drives only the PDF's risk rules. |
+| A2 | The sampling interval (10, 25 or 50 miles) is the driver's choice; checkpoints sit at mile 0, N, 2N … plus the destination. |
+| A3 | A checkpoint's ETA is departure plus the travel time interpolated between TomTom's timing points, so it carries the provider's traffic-aware timing. |
+| A4 | Weather at a checkpoint is the forecast hour nearest to its ETA. |
+| A5 | Wind thresholds use sustained wind at 10 m; gusts are shown in the popup for information only. |
+| A6 | Checkpoint risk is the worst of wind, rain and snow, after the load rules are applied to the wind level. |
+| A7 | A stretch between consecutive checkpoints is rated at the worse of its two endpoints; "Severe miles" and "High miles" sum stretch lengths at that level. |
+| A8 | Ranking compares No Travel miles first, then the PDF's four criteria in order. A route with a No Travel checkpoint is never recommended; if all three have one, none is. |
+| A9 | Average risk is the distance-weighted mean of the level index (Low 0 to No Travel 4). |
+| A10 | The heatmap grid is the checkpoint set itself, with 49 hourly levels per point; weather is fetched once per unique checkpoint and cached per 3 km cell. |
+| A11 | Slider hour 0 is the departure time, up to +48 h; the absolute time is shown beside the slider. |
+| A12 | Every provider call goes through Django; keys stay server-side; responses are cached (geocodes 24 h, routes 1 h, weather 30 min). |
+| A13 | Geocoding is limited to the US, matching the PDF's miles, inches and pounds. |
+| A14 | Deployment is Docker Compose on one server, served over plain HTTP on its IP; HTTPS is added only once a domain exists. |
 
 ## Local development
 

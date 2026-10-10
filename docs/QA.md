@@ -52,11 +52,11 @@ checks drove the real page in headless Chromium with Playwright and, for GPU tim
 | Checkpoint and heatmap layers | GPU layers (circle + heatmap), not DOM markers; 211 checkpoints + 205 heatmap points render without lag | [x] |
 | Production bundle (`vite build` + `vite preview`) | identical behaviour to dev; worker bundled | [x] |
 
-## 4. Automated suites at the end of Phase 6
+## 4. Automated suites at the end of Phase 8
 
 | Suite | Count |
 |---|---|
-| Backend `pytest` | 197 |
+| Backend `pytest` | 216 (incl. 15 documentation-contract tests) |
 | Frontend `vitest` | 77 |
 | `ruff check` / `ruff format --check` | clean |
 | `tsc -b`, `vite build`, `oxlint` | clean |
