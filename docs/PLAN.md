@@ -271,8 +271,14 @@ Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxl
   (no CSRF middleware: the API is stateless JSON with no cookies) and W004/W008 (HSTS and SSL redirect: plain
   HTTP on an IP by design, A14).
 - Local Docker is not available on the dev machine (WSL disk missing), so the images were not built here.
-- Gate (pending the server): `http://<server-ip>/` serves the app and `deploy/smoke.sh` plans a real trip from
-  an outside network.
+- 2026-10-11: the server also hosts the user's primary production project, which must never be affected. The
+  stack is now scoped and capped (`config/tests/test_deploy_files.py`, written red first): fixed compose project
+  name `spotter-assessment`; the deploy script runs only scoped `docker compose` commands (no `--remove-orphans`,
+  no `--pull`, no down/prune) and refuses to start when `WEB_PORT` is served by another service (checked for real
+  with a stubbed `docker` and `ss`); memory and CPU limits on both services. The app will run on a non-80 port
+  there, set through `WEB_PORT`.
+- Gate (pending the server): `http://<server-ip>:<port>/` serves the app and `deploy/smoke.sh` plans a real trip
+  from an outside network.
 
 ### Phase 8 — Documentation and walkthrough — DONE 2026-10-10, gate passed, pushed
 - README: overview, architecture diagram, how risk and recommendation are computed, assumptions A1–A14, API contract,

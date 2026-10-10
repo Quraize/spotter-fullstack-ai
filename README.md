@@ -260,9 +260,22 @@ From a laptop: `ssh user@server 'cd spotter && ./deploy/deploy.sh'`. The smoke t
 `./deploy/smoke.sh http://<server-ip>`.
 
 Operations: `docker compose logs -f backend` for plan timings and provider errors; `docker compose ps` for
-health (both containers have healthchecks); `docker compose down` to stop. Set `WEB_PORT` in `.env` to listen on a
-port other than 80. Adding HTTPS later means putting a TLS-terminating proxy (or Caddy) in front of `web` and setting
-`SECURE_PROXY_SSL_HEADER` in `config/settings/prod.py`; nothing else changes.
+health (both containers have healthchecks); `docker compose down` to stop. Adding HTTPS later means putting a
+TLS-terminating proxy (or Caddy) in front of `web` and setting `SECURE_PROXY_SSL_HEADER` in
+`config/settings/prod.py`; nothing else changes.
+
+**Sharing a server with other services.** The stack is built to coexist with whatever else the host runs:
+
+- The compose project is named `spotter-assessment` in `docker-compose.yml`, so its containers, network and cache
+  volume are namespaced and every `docker compose` command run from this directory can only affect this stack.
+  The deploy script issues nothing but scoped `docker compose` commands: no orphan removal, no base-image pulls,
+  no `down`, no pruning.
+- If port 80 already belongs to another service, set `WEB_PORT=8080` (or any free port) in `.env` and reach the app
+  at `http://<server-ip>:8080`. The deploy script checks the port before building and refuses to start if another
+  service is listening on it. Open the port in the firewall (`ufw allow 8080/tcp`, or the hosting panel's firewall).
+- Both containers carry memory and CPU caps (backend 768 MB / 1 CPU, web 128 MB / 0.5 CPU), so a fault here cannot
+  starve a neighbour. The one-off image build is the heaviest step (the Vite build needs roughly 1 GB free RAM for a
+  minute).
 
 ## Repository layout
 

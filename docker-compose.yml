@@ -1,5 +1,11 @@
 # Production stack: nginx (static frontend + /api proxy) in front of gunicorn.
 # Configuration comes from the repository-root .env (see .env.example).
+#
+# The project name is fixed so every container, network and volume is namespaced "spotter-assessment-*"
+# and compose commands run from this directory can only ever affect this stack, whatever else runs on
+# the host. Both services are capped so a bug here cannot starve other services of memory or CPU.
+name: spotter-assessment
+
 services:
   backend:
     build:
@@ -13,6 +19,11 @@ services:
       - provider-cache:/var/cache/spotter
     expose:
       - "8000"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "1.0"
     restart: unless-stopped
     logging:
       driver: json-file
@@ -27,6 +38,11 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
     restart: unless-stopped
     logging:
       driver: json-file
