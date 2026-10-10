@@ -42,8 +42,9 @@ not used. The app must never fabricate a route.
 - Photon (komoot): works, no key, autocomplete allowed. Fallback only.
 
 ### 1.3 Weather — Open-Meteo (verified live)
-- No key. Free non-commercial: 600/min, 5,000/hour, 10,000/day. "One HTTP request typically = one call";
-  multi-location weighting is not documented, so budget as if each location counts.
+- No key. Free non-commercial: 600/min, 5,000/hour, 10,000/day. **Confirmed live 2026-10-10: each location in a
+  multi-location request counts as one call** (HTTP 429 "Minutely API request limit exceeded" after ~690 locations
+  within a minute). A fresh 1,000-mile plan at 25-mile checkpoints needs ~140 locations; at 10 miles ~350.
 - Live test: **300 locations in one request**, 72 hourly steps each, 3.5 s, 793 KB. Horizon up to 16 days (384 h).
 - Units confirmed in the response: `wind_speed_10m` **mph**, `wind_gusts_10m` mph, `rain` **inch** (sum of preceding hour
   = in/hr), `snowfall` **inch** (preceding hour = in/hr) when `precipitation_unit=inch`. Matches PDF units exactly.
@@ -76,7 +77,7 @@ Current versions: Django 6.1.2, DRF 3.18.3, React 19.3, Vite 8.3, MapLibre 6.13,
 | A7 | Each stretch between two consecutive checkpoints is rated at the worse of its two endpoints; "Severe miles" / "High miles" = sum of stretch lengths at that level. | Conservative and easy to explain. |
 | A8 | Recommendation = sort by (No Travel miles, Severe miles, High miles, average risk, travel time). Any route containing a No Travel checkpoint is badged "Travel not advised". If all routes have No Travel miles, the app says so and recommends none. | PDF list is kept intact; No Travel is the top of the PDF scale so it ranks above Severe. |
 | A9 | Average risk = distance-weighted mean of level index (Low 0 … No Travel 4). | Deterministic, explainable. |
-| A10 | Heatmap value = risk level at each corridor point for the slider hour; corridor points sampled every 10 mi along all returned routes (one weather batch shared with checkpoints). | "Weather heatmap along the trip corridor" + smooth rendering. |
+| A10 | Heatmap value = risk level at each checkpoint for the slider hour, 49 hourly values per checkpoint across all routes. The heatmap grid *is* the checkpoint set (10/25/50 mi), so weather is fetched exactly once per unique checkpoint. Weather is cached per ~3 km cell (0.05°) for 30 min so repeats and overlapping trips are free. (Revised 2026-10-10: a separate 10-mile grid tripled Open-Meteo usage and hit its 600 locations/min limit in the live test.) | "Weather heatmap along the trip corridor"; one set of points, one purpose; stays inside free quotas. |
 | A11 | Slider hour 0 = departure time, up to +48 h; absolute time is displayed next to the slider. | Forecast relative to the trip is what the driver needs. |
 | A12 | All third-party calls go through Django; keys stay server-side; responses cached (geocode 24 h, routes 1 h, weather 30 min) to protect free quotas. | Quotas + no key leakage. |
 | A13 | US-focused geocoding (`countrySet=US`). | PDF units are mph/inch/lb. |
@@ -175,7 +176,16 @@ Pure Python, no network:
   load-rule edge cases (30,000 vs 30,001 lb; 40,000 vs 40,001 lb), sampling on synthetic polylines, tie-breaking order.
 - Gate: `pytest` green; logic documented in the README section "How risk is computed".
 
-### Phase 3 — Provider integrations and `/api/plan`
+### Phase 3 — Provider integrations and `/api/plan` — DONE 2026-10-10, gate passed
+Delivered test-first in three cycles (providers with an in-memory HTTP transport, planner with stub providers and
+the real Django cache, API view with a fake planner): 80 new tests, 189 total, ruff clean.
+Live gate (dev server, real providers): Chicago → Denver cold 8.4 s / 109 KB, cached repeat 1.3 s, 50-mile variant
+0.8 s with zero weather fetches, 10-mile variant 2.8 s fetching only new cells; NYC → Philadelphia 3.1 s;
+validation, same-place, and geocode-miss errors all mapped. Real weather ranked route 1 (100 Moderate miles)
+behind routes 2 and 3 on average risk, with route 2 winning on time.
+Phase 6 note: the cached path is CPU-bound (~1.3 s: Douglas–Peucker over ~40K points plus ~7K risk assessments);
+cache the prepared geometry per route if the UI needs it faster.
+
 - `providers/tomtom.py` (geocode, route), `providers/openmeteo.py` (batch hourly, unit params, nearest-hour lookup).
 - Caching layer (Django cache; file-based in prod so gunicorn workers share it).
 - Alternatives shortfall handling; error mapping to clear API errors (geocode miss, no route, upstream quota/timeout).

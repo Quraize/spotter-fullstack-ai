@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phase 2 of 8 complete: scaffold plus tested domain logic (risk rules, checkpoint sampling, aggregation, recommendation). See `docs/PLAN.md` for what each phase delivers.
+Phase 3 of 8 complete: tested domain logic, TomTom and Open-Meteo clients, caching, and the `POST /api/plan` endpoint. See `docs/PLAN.md` for what each phase delivers.
 
 ## Stack
 
@@ -58,6 +58,67 @@ average risk, then shortest travel time. Because No Travel is the top of the PDF
 compared on No Travel miles before those four criteria, and a route with any No Travel checkpoint is never
 recommended. If every route has No Travel conditions the app says so and recommends none. Miles are
 compared at 0.1-mile precision and average risk at 0.01 so floating-point noise never decides a tie.
+
+## API
+
+`GET /api/health` returns `{"status": "ok", "service": ..., "time": ..., "tomtom_key_configured": true}`.
+
+`POST /api/plan` plans a trip. Request body:
+
+```json
+{
+  "origin": "Chicago, IL",
+  "destination": "Denver, CO",
+  "departure_time": "2026-10-11T08:00:00-05:00",
+  "load_weight_lb": 42000,
+  "sample_interval_miles": 25
+}
+```
+
+`departure_time` must carry a UTC offset and lie between one hour ago and 14 days ahead.
+`sample_interval_miles` is 10, 25 or 50. Response (abridged):
+
+```json
+{
+  "inputs": { "origin": {"query", "name", "lat", "lon"}, "destination": {...}, "departure_time", "load_weight_lb", "sample_interval_miles" },
+  "routes": [
+    {
+      "id": "r1", "name": "Route 1", "rank": 2, "distance_miles": 1008.4, "duration_seconds": 50040,
+      "departure_time": "...", "arrival_time": "...", "traffic_delay_seconds": 120,
+      "geometry": [[lon, lat], ...], "bbox": [min_lon, min_lat, max_lon, max_lat],
+      "checkpoints": [
+        { "index": 0, "mile": 0, "lat": ..., "lon": ..., "eta": "...",
+          "wind_mph": 20.5, "gust_mph": 34.4, "rain_in_hr": 0.0, "snow_in_hr": 0.0,
+          "wind_level": "low", "rain_level": "low", "snow_level": "low",
+          "level": "low", "load_rule": null, "reason": "Wind 20 mph, rain 0.00 in/hr, snow 0.0 in/hr: Low" }
+      ],
+      "summary": { "miles_by_level": {"low", "moderate", "high", "severe", "no_travel"}, "total_miles",
+                   "average_risk", "worst_level", "worst_checkpoint_index", "no_travel" }
+    }
+  ],
+  "recommended_route_id": "r2",
+  "recommendation": { "route_id": "r2", "ranked_ids": ["r2", "r3", "r1"], "reason": "...", "all_no_travel": false },
+  "heatmap": { "interval_miles": 25, "hours": ["<49 ISO timestamps from departure>"],
+               "points": [ { "lat", "lon", "levels": ["<49 ints, Low 0 to No Travel 4>"] } ] },
+  "warnings": []
+}
+```
+
+Errors are `{"error": {"code", "message", "fields"?}}`:
+
+| Status | Code |
+|---|---|
+| 400 | `validation_error` (with per-field messages) |
+| 422 | `geocode_not_found`, `route_not_found`, `invalid_trip` |
+| 502 | `provider_bad_request` |
+| 503 | `provider_unavailable`, `provider_quota_exceeded` |
+
+**Third-party calls and caching.** Routing and geocoding use TomTom (truck mode, traffic-aware departure time,
+2 alternatives requested, 4 on retry when fewer than 3 distinct routes come back). Weather uses Open-Meteo, which
+counts every location in a batch against its 600 per minute and 10,000 per day free limits, so the heatmap grid is
+the checkpoint set itself and forecasts are cached per 3 km cell for 30 minutes. Geocodes are cached for 24 hours
+and routes for 1 hour (departure bucketed to 15 minutes). A 1,000-mile plan takes about 8 s cold and about 1.3 s
+when every provider call is cached.
 
 ## Local development
 
