@@ -202,6 +202,9 @@ route, hovering a projected checkpoint shows the popup, and the production bundl
 behaves the same. Stack: react-map-gl 8 on MapLibre GL 6 with OpenFreeMap tiles (grey "positron" at first;
 switched to the coloured "liberty" style on 2026-10-11 after comparing positron, bright, liberty and fiord
 screenshots of the demo trip; `lib/mapStyle.ts` holds the style and route colours with a contrast test).
+The side panel, the forecast controls and the legend fold away (2026-10-11, user request for more map room):
+`components/PanelToggle.tsx`, `components/Legend.tsx`; tests in App, HeatmapControls and Legend; browser gate
+checked the map canvas widens from 980 to 1356 px at 1400 px wide, state survives folding, phone layout.
 Two MapLibre 6 + Vite 8 pitfalls fixed and documented in `vite.config.ts`: exclude `maplibre-gl` from dependency
 pre-bundling (dev) and import the worker explicitly with `?worker&url` + `setWorkerUrl` (build), otherwise the
 map canvas is blank.

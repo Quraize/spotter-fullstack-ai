@@ -71,4 +71,23 @@ describe('HeatmapControls', () => {
     setup({ hour: 99 })
     expect(screen.getByRole('slider', { name: /forecast hour/i })).toHaveValue('48')
   })
+
+  it('collapses to a chip that still names the forecast time, and expands with the hour intact', async () => {
+    setup({ hour: 6 })
+    const user = userEvent.setup()
+    const hide = screen.getByRole('button', { name: /hide forecast controls/i })
+    expect(hide).toHaveAttribute('aria-expanded', 'true')
+
+    await user.click(hide)
+    expect(screen.queryByRole('slider', { name: /forecast hour/i })).toBeNull()
+    expect(screen.queryByRole('checkbox', { name: /heatmap/i })).toBeNull()
+    expect(screen.getByText(formatDateTime(hours[6]))).toBeInTheDocument()
+    expect(screen.getByText(/\+6 h/)).toBeInTheDocument()
+    const show = screen.getByRole('button', { name: /show forecast controls/i })
+    expect(show).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(show)
+    expect(screen.getByRole('slider', { name: /forecast hour/i })).toHaveValue('6')
+    expect(screen.getByRole('checkbox', { name: /checkpoints/i })).toBeChecked()
+  })
 })

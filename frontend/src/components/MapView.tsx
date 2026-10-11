@@ -34,6 +34,7 @@ import {
 } from '../lib/heatmap'
 import { MAP_STYLE, OTHER_ROUTE_COLOR, SELECTED_ROUTE_COLOR } from '../lib/mapStyle'
 import { LEVELS, LEVEL_BY_KEY, levelColorExpression } from '../lib/risk'
+import { Legend } from './Legend'
 
 // Bundled by Vite as its own ES-module worker so the production build ships it.
 setWorkerUrl(maplibreWorkerUrl)
@@ -259,31 +260,6 @@ function CheckpointDetails({ checkpoint }: { checkpoint: CheckpointProps }) {
         <dd>{checkpoint.snow_in_hr.toFixed(1)} in/hr</dd>
       </dl>
       <p className="popup__reason">{checkpoint.reason}</p>
-    </div>
-  )
-}
-
-function Legend() {
-  return (
-    <div className="legend" aria-label="Legend">
-      <div className="legend__title">Risk level</div>
-      {LEVELS.map((l) => (
-        <div key={l.key} className="legend__row">
-          <span className="legend__dot" style={{ background: l.color }} />
-          {l.label}
-        </div>
-      ))}
-      <div className="legend__row legend__row--lines">
-        <span className="legend__line" style={{ background: SELECTED_ROUTE_COLOR }} /> selected route
-      </div>
-      <div className="legend__row legend__row--lines">
-        <span className="legend__line" style={{ background: OTHER_ROUTE_COLOR }} /> other routes
-      </div>
-      <div className="legend__hint">
-        Dots: risk at each checkpoint's ETA (hover for details).
-        <br />
-        Shading: forecast risk at the slider time.
-      </div>
     </div>
   )
 }

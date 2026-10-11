@@ -16,9 +16,78 @@
   border-right: 1px solid var(--border);
 }
 
+.sidebar__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.sidebar__header > div {
+  flex: 1;
+  min-width: 0;
+}
+
 .sidebar__header h1 {
   font-size: 18px;
   font-weight: 650;
+}
+
+/* Folded: the panel keeps its state but leaves only a rail with the "show" button. */
+.app--panel-collapsed {
+  grid-template-columns: 44px 1fr;
+}
+
+.sidebar[hidden] {
+  display: none;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+/* --- Fold buttons (side panel, forecast controls, legend) -------------- */
+
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.panel-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.panel-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.panel-toggle--pill {
+  width: auto;
+  padding: 0 8px 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
 }
 
 .tagline {
@@ -50,6 +119,22 @@
     height: 55vh;
   }
 
+  .app--panel-collapsed {
+    grid-template-rows: auto 1fr;
+    height: 100%;
+  }
+
+  .app--panel-collapsed .map-area {
+    height: auto;
+  }
+
+  .rail {
+    flex-direction: row;
+    padding: 8px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
   /* Keep the small map usable: legend as one wrapping row, no hint text. */
   .legend {
     flex-direction: row;
@@ -63,6 +148,11 @@
   .legend__title,
   .legend__hint {
     display: none;
+  }
+
+  .legend__head {
+    order: 1;
+    margin-bottom: 0;
   }
 
   .legend__row--lines {
@@ -356,9 +446,22 @@ button.primary:disabled {
   pointer-events: none;
 }
 
+.legend--collapsed {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.legend__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
 .legend__title {
   font-weight: 650;
-  margin-bottom: 2px;
 }
 
 .legend__row {
@@ -449,6 +552,14 @@ button.primary:disabled {
   flex-direction: column;
   gap: 6px;
   box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+}
+
+.heatmap-controls--collapsed {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  right: auto;
+  padding: 6px 6px 6px 12px;
 }
 
 .heatmap-controls__row {

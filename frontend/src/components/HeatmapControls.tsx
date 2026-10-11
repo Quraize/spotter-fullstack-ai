@@ -1,5 +1,8 @@
+import { useState } from 'react'
+
 import { formatDateTime } from '../lib/format'
 import { clampHour } from '../lib/heatmap'
+import { PanelToggle } from './PanelToggle'
 
 interface Props {
   hours: string[] // ISO timestamps, index 0 = departure
@@ -24,6 +27,19 @@ export function HeatmapControls({
   const current = clampHour(hour, maxHour)
   const when = formatDateTime(hours[current])
   const offset = current === 0 ? 'departure' : `+${current} h`
+  const [open, setOpen] = useState(true)
+
+  if (!open) {
+    return (
+      <div className="heatmap-controls heatmap-controls--collapsed" role="group" aria-label="Weather heatmap">
+        <span className="heatmap-controls__label">
+          Forecast risk at <strong>{when}</strong>{' '}
+          <span className="heatmap-controls__offset">({offset})</span>
+        </span>
+        <PanelToggle label="Show forecast controls" expanded={false} direction="down" onClick={() => setOpen(true)} />
+      </div>
+    )
+  }
 
   return (
     <div className="heatmap-controls" role="group" aria-label="Weather heatmap">
@@ -41,6 +57,7 @@ export function HeatmapControls({
             <input type="checkbox" checked={showCheckpoints} onChange={(e) => onShowCheckpointsChange(e.target.checked)} />
             Checkpoints
           </label>
+          <PanelToggle label="Hide forecast controls" expanded direction="up" onClick={() => setOpen(false)} />
         </div>
       </div>
       <input

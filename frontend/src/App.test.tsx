@@ -129,6 +129,28 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('slider', { name: /forecast hour/i })).toHaveValue('0'))
   })
 
+  it('folds the side panel away to give the map room, and brings it back with the form intact', async () => {
+    const user = userEvent.setup()
+    const { container } = render(<App />)
+    const origin = screen.getByRole('textbox', { name: /origin/i })
+    await user.clear(origin)
+    await user.type(origin, 'Boise, ID')
+
+    const hide = screen.getByRole('button', { name: /hide panel/i })
+    expect(hide).toHaveAttribute('aria-expanded', 'true')
+    await user.click(hide)
+    expect(container.firstChild).toHaveClass('app--panel-collapsed')
+    expect(screen.queryByRole('textbox', { name: /origin/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /plan routes/i })).toBeNull()
+    expect(screen.getByTestId('map')).toBeInTheDocument()
+
+    const show = screen.getByRole('button', { name: /show panel/i })
+    expect(show).toHaveAttribute('aria-expanded', 'false')
+    await user.click(show)
+    expect(container.firstChild).not.toHaveClass('app--panel-collapsed')
+    expect(screen.getByRole('textbox', { name: /origin/i })).toHaveValue('Boise, ID')
+  })
+
   it('lets the driver hide the heatmap or the checkpoints', async () => {
     postPlanMock.mockResolvedValue(planFixture)
     const user = userEvent.setup()

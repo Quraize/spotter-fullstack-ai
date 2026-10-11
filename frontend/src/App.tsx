@@ -5,6 +5,7 @@ import { ApiError, apiErrorMessage, postPlan } from './api/client'
 import type { Plan, PlanRequest } from './api/types'
 import { HeatmapControls } from './components/HeatmapControls'
 import { MapView } from './components/MapView'
+import { PanelToggle } from './components/PanelToggle'
 import { PlanForm } from './components/PlanForm'
 import { RouteCards } from './components/RouteCards'
 import { useFrameThrottledValue } from './hooks/useFrameThrottledValue'
@@ -19,6 +20,8 @@ export default function App() {
   const [hour, setHour] = useState(0)
   const [showHeatmap, setShowHeatmap] = useState(true)
   const [showCheckpoints, setShowCheckpoints] = useState(true)
+  // The side panel folds into a thin rail so the map can use the width; its contents stay mounted.
+  const [panelOpen, setPanelOpen] = useState(true)
   // The slider label follows every input event; the map re-styles once per frame.
   const mapHour = useFrameThrottledValue(hour)
 
@@ -38,11 +41,19 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <aside className="sidebar">
+    <div className={panelOpen ? 'app' : 'app app--panel-collapsed'}>
+      {!panelOpen && (
+        <div className="rail">
+          <PanelToggle label="Show panel" expanded={false} direction="right" onClick={() => setPanelOpen(true)} />
+        </div>
+      )}
+      <aside className="sidebar" hidden={!panelOpen}>
         <header className="sidebar__header">
-          <h1>Weather-Aware Truck Routing</h1>
-          <p className="tagline">Three truck routes, weather sampled at every checkpoint, ranked by the risk rules.</p>
+          <div>
+            <h1>Weather-Aware Truck Routing</h1>
+            <p className="tagline">Three truck routes, weather sampled at every checkpoint, ranked by the risk rules.</p>
+          </div>
+          <PanelToggle label="Hide panel" expanded direction="left" onClick={() => setPanelOpen(false)} />
         </header>
         <PlanForm initial={INITIAL_FORM} loading={loading} onSubmit={handleSubmit} />
         {error && (

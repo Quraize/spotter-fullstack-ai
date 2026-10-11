@@ -100,6 +100,8 @@ compared at 0.1-mile precision and average risk at 0.01 so floating-point noise 
   top, so the shading at a checkpoint always matches its popup level at the matching hour. The slider only swaps which
   hour property the layers read, throttled to one update per animation frame. Heatmap and checkpoints can each be
   hidden.
+- **Room for the map.** The side panel, the forecast controls and the legend each fold away with a chevron button
+  and come back with their state intact (form values, slider hour, selected route).
 
 ## API
 
