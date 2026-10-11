@@ -10,6 +10,8 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 Phases 0–8 complete: tested domain logic, provider clients and `POST /api/plan`; the React map UI with form, route cards, checkpoints, popups and the 0–48 h weather heatmap; hardening with a ticked QA checklist (`docs/QA.md`); a Docker Compose deployment with a one-command deploy script; and this documentation with the Loom outline in `docs/LOOM-SCRIPT.md`. See `docs/PLAN.md` for what each phase delivers.
 
+Live demo (temporary, plain HTTP on a shared server): http://2.25.193.125:8080
+
 ## Stack
 
 | Layer | Choice |

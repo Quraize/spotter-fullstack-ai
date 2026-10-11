@@ -257,7 +257,7 @@ Scope kept to the edge cases listed below; no new features. Test-first additions
 
 Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxlint/build clean.
 
-### Phase 7 — Deployment to your server — BUILT 2026-10-10, server gate pending
+### Phase 7 — Deployment to your server — DONE 2026-10-11, gate passed
 - `deploy/backend.Dockerfile` (python:3.12-slim, gunicorn 2 workers × 4 threads, 120 s timeout, non-root,
   healthcheck on `/api/health`), `deploy/frontend.Dockerfile` (node build stage → nginx:alpine),
   `deploy/nginx.conf` (static + `/api/` proxy with 120 s read timeout, gzip, immutable `/assets/`, SPA fallback),
@@ -283,8 +283,12 @@ Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxl
   `smoke.sh`, which sends each as the `Host` header (checked against a stub HTTP app that answers 400 like Django).
   The same work fixed a silent exit in `smoke.sh`: under `pipefail` a zero-match `grep` aborted the script without
   printing the response; it now reports the body, and every curl failure is named.
-- Gate (pending the server): `http://<server-ip>:<port>/` serves the app and `deploy/smoke.sh` plans a real trip
-  from an outside network.
+- Gate passed 2026-10-11 from an outside network: `deploy/smoke.sh http://2.25.193.125:8080` and the same by
+  hostname (page, health, 3-route plan in 1 s warm); headless Chromium against the public address planned the
+  Loom demo trip (3 cards, "Recommended: Route 1", map with routes, checkpoints and heatmap, slider to +24 h, no
+  console errors; screenshot checked). Headers from outside: nosniff, frame DENY, referrer policy, `no-cache` on
+  the page, one-year immutable cache on assets. The API carried X-Frame-Options twice (Django middleware plus
+  nginx); nginx now hides the upstream copy (`test_deploy_files.py`).
 
 ### Phase 8 — Documentation and walkthrough — DONE 2026-10-10, gate passed, pushed
 - README: overview, architecture diagram, how risk and recommendation are computed, assumptions A1–A14, API contract,

@@ -250,3 +250,11 @@ def test_smoke_passes_when_every_public_host_is_accepted(stub_app):
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "203.0.113.10" in result.stdout and "example.test" in result.stdout
+
+
+def test_nginx_does_not_duplicate_the_frame_header_django_already_sends():
+    # Django's XFrameOptionsMiddleware and nginx's server-level add_header both emit X-Frame-Options: DENY on
+    # /api responses (seen on the deployed app); the proxy location must hide the upstream copy.
+    nginx = (REPO / "deploy" / "nginx.conf").read_text(encoding="utf-8")
+    api_location = re.search(r"location /api/ \{(.*?)\n    \}", nginx, re.S).group(1)
+    assert "proxy_hide_header X-Frame-Options;" in api_location
