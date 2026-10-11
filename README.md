@@ -255,7 +255,9 @@ cp .env.example .env
 ```
 
 Every later release: `./deploy/deploy.sh` (pulls `main`, rebuilds both images, restarts the stack, runs
-migrations, then runs `deploy/smoke.sh`, which loads the page, checks `/api/health` and plans a real trip).
+migrations, then runs `deploy/smoke.sh`, which loads the page, checks `/api/health`, sends each public entry of
+`DJANGO_ALLOWED_HOSTS` as the `Host` header so a wrong value fails here rather than in a browser, and plans a real
+trip). The script also refuses to start when `DJANGO_ALLOWED_HOSTS` holds only loopback entries.
 From a laptop: `ssh user@server 'cd spotter && ./deploy/deploy.sh'`. The smoke test also works remotely:
 `./deploy/smoke.sh http://<server-ip>`.
 

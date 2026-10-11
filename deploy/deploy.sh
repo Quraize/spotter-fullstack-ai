@@ -37,6 +37,14 @@ if [ "${#secret}" -lt 50 ]; then
   echo '  python3 -c "import secrets; print(secrets.token_urlsafe(50))"' >&2
   exit 1
 fi
+# Django answers 400 to any Host header outside DJANGO_ALLOWED_HOSTS; loopback is always allowed for the
+# healthcheck, so the list must also carry the address people actually use.
+ALLOWED_HOSTS=$(env_value DJANGO_ALLOWED_HOSTS)
+PUBLIC_HOSTS=$(printf '%s' "$ALLOWED_HOSTS" | tr ',' '\n' | grep -vxE '127\.0\.0\.1|localhost' | paste -sd, - || true)
+if [ -z "$PUBLIC_HOSTS" ]; then
+  echo "DJANGO_ALLOWED_HOSTS=$ALLOWED_HOSTS has no public host; set it to the server's public IP or name." >&2
+  exit 1
+fi
 command -v docker >/dev/null || { echo "docker is not installed" >&2; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "the docker compose plugin is not installed" >&2; exit 1; }
 
@@ -65,7 +73,7 @@ log "Running migrations"
 docker compose exec -T backend python manage.py migrate --noinput
 
 log "Smoke test"
-./deploy/smoke.sh "http://127.0.0.1:${WEB_PORT}"
+./deploy/smoke.sh "http://127.0.0.1:${WEB_PORT}" "$PUBLIC_HOSTS"
 
 log "Deployed. Containers:"
 docker compose ps

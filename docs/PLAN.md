@@ -277,6 +277,12 @@ Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxl
   no `--pull`, no down/prune) and refuses to start when `WEB_PORT` is served by another service (checked for real
   with a stubbed `docker` and `ss`); memory and CPU limits on both services. The app will run on a non-80 port
   there, set through `WEB_PORT`.
+- 2026-10-11, first server deploy: the stack built in 42 s and the loopback smoke test passed, but from outside
+  `/api/health` answered Django's 400 because `DJANGO_ALLOWED_HOSTS` did not hold the public IP. Fixed test-first
+  in `test_deploy_files.py`: `deploy.sh` refuses a loopback-only host list and hands every public entry to
+  `smoke.sh`, which sends each as the `Host` header (checked against a stub HTTP app that answers 400 like Django).
+  The same work fixed a silent exit in `smoke.sh`: under `pipefail` a zero-match `grep` aborted the script without
+  printing the response; it now reports the body, and every curl failure is named.
 - Gate (pending the server): `http://<server-ip>:<port>/` serves the app and `deploy/smoke.sh` plans a real trip
   from an outside network.
 
