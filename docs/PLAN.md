@@ -288,7 +288,10 @@ Gate: `docs/QA.md` fully ticked, 197 backend and 77 frontend tests, ruff/tsc/oxl
   Loom demo trip (3 cards, "Recommended: Route 1", map with routes, checkpoints and heatmap, slider to +24 h, no
   console errors; screenshot checked). Headers from outside: nosniff, frame DENY, referrer policy, `no-cache` on
   the page, one-year immutable cache on assets. The API carried X-Frame-Options twice (Django middleware plus
-  nginx); nginx now hides the upstream copy (`test_deploy_files.py`).
+  nginx); nginx now hides the upstream copy (`test_deploy_files.py`). Redeployed 2026-10-11 and checked from
+  outside: the header appears once on GET and HEAD. HTTPS was considered and parked: ports 80/443 and the
+  server's DNS name belong to the host's primary project and provider, so a trusted certificate needs a
+  domain the user controls (A14 stands).
 
 ### Phase 8 — Documentation and walkthrough — DONE 2026-10-10, gate passed, pushed
 - README: overview, architecture diagram, how risk and recommendation are computed, assumptions A1–A14, API contract,

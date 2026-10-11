@@ -78,6 +78,6 @@ checks drove the real page in headless Chromium with Playwright and, for GPU tim
 | `deploy/deploy.sh --no-pull` on the server | images built in 42 s cold, 1 s cached; both containers healthy; migrations applied; internal smoke test passed including the `Host:` checks for the public IP and hostname | [x] |
 | `deploy/smoke.sh http://2.25.193.125:8080` from outside | page, health and a 3-route plan ok, by IP and by hostname | [x] |
 | Headless Chromium against the public address | Loom demo trip planned: 3 cards, "Recommended: Route 1", routes, checkpoints and heatmap rendered, slider to +24 h, no console errors | [x] |
-| Response headers from outside | nosniff, X-Frame-Options DENY, Referrer-Policy; `no-cache` page; one-year immutable assets | [x] |
+| Response headers from outside | nosniff, X-Frame-Options DENY, Referrer-Policy; `no-cache` page; one-year immutable assets; X-Frame-Options sent once on `/api` after the 2026-10-11 redeploy | [x] |
 | Coexistence with the server's primary project | compose project `spotter-assessment`, its own network and volume; port 80 untouched; memory/CPU caps | [x] |
 | Wrong `DJANGO_ALLOWED_HOSTS` | found by the first external check (400 from Django); the deploy script now refuses a loopback-only list and the smoke test sends each public host as `Host` | [x] |
