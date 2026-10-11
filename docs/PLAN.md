@@ -199,7 +199,9 @@ Delivered test-first: 42 Vitest tests (formatting, risk metadata, GeoJSON shapin
 app shell with the map mocked) plus a Playwright gate that drives the real page in headless Chromium against the
 live backend: plan renders in ~1.6–2.9 s on a warm cache, cards in rank order, card click changes the selected
 route, hovering a projected checkpoint shows the popup, and the production bundle (`vite build` + `vite preview`)
-behaves the same. Stack: react-map-gl 8 on MapLibre GL 6 with OpenFreeMap positron tiles.
+behaves the same. Stack: react-map-gl 8 on MapLibre GL 6 with OpenFreeMap tiles (grey "positron" at first;
+switched to the coloured "liberty" style on 2026-10-11 after comparing positron, bright, liberty and fiord
+screenshots of the demo trip; `lib/mapStyle.ts` holds the style and route colours with a contrast test).
 Two MapLibre 6 + Vite 8 pitfalls fixed and documented in `vite.config.ts`: exclude `maplibre-gl` from dependency
 pre-bundling (dev) and import the worker explicitly with `?worker&url` + `setWorkerUrl` (build), otherwise the
 map canvas is blank.

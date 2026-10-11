@@ -32,10 +32,8 @@ import {
   heatmapRadiusExpression,
   heatmapWeightExpression,
 } from '../lib/heatmap'
+import { MAP_STYLE, OTHER_ROUTE_COLOR, SELECTED_ROUTE_COLOR } from '../lib/mapStyle'
 import { LEVELS, LEVEL_BY_KEY, levelColorExpression } from '../lib/risk'
-
-// Free vector tiles, no key, no request limits: https://openfreemap.org
-const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron'
 
 // Bundled by Vite as its own ES-module worker so the production build ships it.
 setWorkerUrl(maplibreWorkerUrl)
@@ -46,9 +44,6 @@ declare global {
   }
 }
 
-const SELECTED_COLOR = '#1565c0'
-const OTHER_COLOR = '#90a4ae'
-
 const routeCasingPaint: LineLayerSpecification['paint'] = {
   'line-color': '#ffffff',
   'line-width': ['case', ['get', 'selected'], 9, 6],
@@ -56,7 +51,7 @@ const routeCasingPaint: LineLayerSpecification['paint'] = {
 }
 
 const routeLinePaint: LineLayerSpecification['paint'] = {
-  'line-color': ['case', ['get', 'selected'], SELECTED_COLOR, OTHER_COLOR],
+  'line-color': ['case', ['get', 'selected'], SELECTED_ROUTE_COLOR, OTHER_ROUTE_COLOR],
   'line-width': ['case', ['get', 'selected'], 5, 3],
 }
 
@@ -279,10 +274,10 @@ function Legend() {
         </div>
       ))}
       <div className="legend__row legend__row--lines">
-        <span className="legend__line" style={{ background: SELECTED_COLOR }} /> selected route
+        <span className="legend__line" style={{ background: SELECTED_ROUTE_COLOR }} /> selected route
       </div>
       <div className="legend__row legend__row--lines">
-        <span className="legend__line" style={{ background: OTHER_COLOR }} /> other routes
+        <span className="legend__line" style={{ background: OTHER_ROUTE_COLOR }} /> other routes
       </div>
       <div className="legend__hint">
         Dots: risk at each checkpoint's ETA (hover for details).
