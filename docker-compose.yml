@@ -38,6 +38,9 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    volumes:
+      # nginx access log; outlives the container so visitor history survives deploys (deploy/visitors.sh).
+      - web-logs:/var/log/spotter
     deploy:
       resources:
         limits:
@@ -50,3 +53,4 @@ services:
 
 volumes:
   provider-cache:
+  web-logs:

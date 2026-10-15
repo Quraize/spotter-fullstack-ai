@@ -283,6 +283,12 @@ TLS-terminating proxy (or Caddy) in front of `web` and setting `SECURE_PROXY_SSL
   starve a neighbour. The one-off image build is the heaviest step (the Vite build needs roughly 1 GB free RAM for a
   minute).
 
+**Who has used it.** nginx writes its access log to the stack's `web-logs` volume, so the record survives deploys
+(a container's own log dies with it at every rebuild). `./deploy/visitors.sh` prints one line per client IP:
+requests, page-bundle loads (only a real browser does that), trips planned, 404 probes, first and last visit in
+UTC, and the browser. Pass saved log files instead to read a copy taken before this volume existed. The file is
+not rotated; at this traffic it grows by well under a megabyte a week.
+
 ## Repository layout
 
 ```

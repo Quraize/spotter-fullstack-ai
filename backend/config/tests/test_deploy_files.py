@@ -258,3 +258,87 @@ def test_nginx_does_not_duplicate_the_frame_header_django_already_sends():
     nginx = (REPO / "deploy" / "nginx.conf").read_text(encoding="utf-8")
     api_location = re.search(r"location /api/ \{(.*?)\n    \}", nginx, re.S).group(1)
     assert "proxy_hide_header X-Frame-Options;" in api_location
+
+
+# --- Access log that survives deploys, and the visitor summary built on it -------------------------
+
+
+def test_web_access_log_is_written_to_a_volume_of_this_stack_and_still_to_stdout():
+    # A container's own log dies with it at every rebuild; the access log also goes to a named volume of
+    # this project so visitor history survives deploys. stdout stays so `docker compose logs web` works.
+    web = re.search(r"^  web:\n(.*?)(?=^  \w+:|^volumes:)", COMPOSE, re.M | re.S).group(1)
+    assert re.search(r"^\s+- web-logs:/var/log/spotter$", web, re.M)
+    declared = COMPOSE[COMPOSE.index("\nvolumes:") :]
+    assert re.search(r"^  web-logs:", declared, re.M)
+    nginx = (REPO / "deploy" / "nginx.conf").read_text(encoding="utf-8")
+    assert "access_log /var/log/spotter/access.log main;" in nginx
+    assert "access_log /var/log/nginx/access.log main;" in nginx
+
+
+VISITORS_SH = (REPO / "deploy" / "visitors.sh").read_text(encoding="utf-8")
+CHROME = "Mozilla/5.0 (Windows NT 10.0) Chrome/130.0"
+
+
+def hit(ip: str, when: str, request: str, status: int, agent: str) -> str:
+    """One line in nginx's "main" format as the official image defines it (last field: X-Forwarded-For)."""
+    return f'{ip} - - [{when} +0000] "{request} HTTP/1.1" {status} 100 "-" "{agent}" "-"\n'
+
+
+SAMPLE_LOG = (
+    hit("203.0.113.7", "14/Oct/2026:09:12:01", "GET /", 200, CHROME)
+    + hit("203.0.113.7", "14/Oct/2026:09:12:02", "GET /assets/index-abc.js", 200, CHROME)
+    + hit("203.0.113.7", "14/Oct/2026:09:12:40", "POST /api/plan", 200, CHROME)
+    + hit("198.51.100.9", "14/Oct/2026:19:23:37", "GET /.env", 404, "Mozilla/5.0 zgrab/0.x")
+    + hit("198.51.100.9", "14/Oct/2026:19:23:38", "GET /wp-login.php", 404, "Mozilla/5.0 zgrab/0.x")
+    + hit("172.18.0.1", "14/Oct/2026:08:00:00", "GET /api/health", 200, "curl/8.5.0")
+    + "2026/10/14 08:00:00 [notice] 1#1: start worker processes\n"
+)
+
+
+def run_visitors(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [bash(), str(REPO / "deploy" / "visitors.sh"), *args], capture_output=True, text=True, timeout=60
+    )
+
+
+def test_visitors_summarises_the_access_log_per_client(tmp_path: Path):
+    log = tmp_path / "access.log"
+    log.write_text(SAMPLE_LOG, encoding="utf-8")
+
+    result = run_visitors(str(log))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    lines = result.stdout.splitlines()
+    assert len(lines) == 2, result.stdout
+    assert re.search(r"^203\.0\.113\.7\s+3 req\s+1 app\s+1 plans\s+0 404s", lines[0])
+    assert "14/Oct/2026:09:12:01 .. 14/Oct/2026:09:12:40" in lines[0]
+    assert lines[0].endswith(CHROME)
+    assert re.search(r"^198\.51\.100\.9\s+2 req\s+0 app\s+0 plans\s+2 404s", lines[1])
+    assert "zgrab" in lines[1]
+    assert "172.18.0.1" not in result.stdout, "the smoke test's curl requests are noise"
+    assert "notice" not in result.stdout, "nginx error-log lines are not requests"
+
+
+def test_visitors_merges_several_saved_logs(tmp_path: Path):
+    # A copy saved before a deploy plus the volume's file after it: counts add up across files.
+    (tmp_path / "a.log").write_text(SAMPLE_LOG, encoding="utf-8")
+    (tmp_path / "b.log").write_text(SAMPLE_LOG.splitlines()[2] + "\n", encoding="utf-8")
+
+    result = run_visitors(str(tmp_path / "a.log"), str(tmp_path / "b.log"))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert re.search(r"^203\.0\.113\.7\s+4 req\s+1 app\s+2 plans", result.stdout, re.M)
+
+
+def test_visitors_fails_loudly_on_a_missing_log(tmp_path: Path):
+    result = run_visitors(str(tmp_path / "nope.log"))
+
+    assert result.returncode != 0
+    assert "nope.log" in result.stderr
+
+
+def test_visitors_only_reads_from_this_stack_when_run_without_arguments():
+    docker_calls = re.findall(r"^\s*docker\s+(.*)$", VISITORS_SH, re.M)
+    assert docker_calls, "the no-argument form reads the running web container's log"
+    for call in docker_calls:
+        assert call.startswith("compose exec -T web cat "), call
