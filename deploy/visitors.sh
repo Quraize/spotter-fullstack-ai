@@ -23,7 +23,7 @@ read_logs() {
   fi
 }
 
-read_logs "$@" \
+summary=$(read_logs "$@" \
   | { grep -E '^[0-9a-f.:]+ - - \[' || true; } \
   | { grep -v '"curl/' || true; } \
   | awk '{
@@ -41,4 +41,10 @@ read_logs "$@" \
         printf "%-15s %4d req %3d app %3d plans %3d 404s  %s .. %s  %s\n",
           ip, n[ip], app[ip] + 0, plans[ip] + 0, notfound[ip] + 0, first[ip], last[ip], substr(agent[ip], 1, 60)
     }' \
-  | sort -k2 -rn
+  | sort -k2 -rn)
+
+if [ -z "$summary" ]; then
+  echo "No visitors recorded yet (the smoke test's own curl requests are left out)."
+else
+  printf '%s\n' "$summary"
+fi
