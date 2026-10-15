@@ -342,3 +342,14 @@ def test_visitors_only_reads_from_this_stack_when_run_without_arguments():
     assert docker_calls, "the no-argument form reads the running web container's log"
     for call in docker_calls:
         assert call.startswith("compose exec -T web cat "), call
+
+
+def test_visitors_says_so_when_only_the_smoke_test_has_called(tmp_path: Path):
+    # Right after a deploy the fresh log holds nothing but the smoke test's curl calls; silence looks broken.
+    log = tmp_path / "access.log"
+    log.write_text(hit("172.18.0.1", "15/Oct/2026:10:40:00", "GET /api/health", 200, "curl/8.5.0"), encoding="utf-8")
+
+    result = run_visitors(str(log))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "no visitors" in result.stdout.lower()
