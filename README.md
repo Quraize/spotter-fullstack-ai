@@ -8,7 +8,7 @@ design decisions and phased plan live in `docs/PLAN.md`.
 
 ## Status
 
-Phases 0–8 complete: tested domain logic, provider clients and `POST /api/plan`; the React map UI with form, route cards, checkpoints, popups and the 0–48 h weather heatmap; hardening with a ticked QA checklist (`docs/QA.md`); a Docker Compose deployment with a one-command deploy script; and this documentation with the Loom outline in `docs/LOOM-SCRIPT.md`. See `docs/PLAN.md` for what each phase delivers.
+Phases 0–8 complete: tested domain logic, provider clients and `POST /api/plan`; the React map UI with form, route cards, checkpoints, popups and the 0–48 h weather heatmap; hardening with a ticked QA checklist (`docs/QA.md`); a Docker Compose deployment with a one-command deploy script; and this documentation. See `docs/PLAN.md` for what each phase delivers.
 
 Live demo (temporary, plain HTTP on a shared server): http://2.25.193.125:8080
 
@@ -293,5 +293,5 @@ backend/
   providers/   TomTom and Open-Meteo clients
 frontend/      Vite + React + TypeScript app
 deploy/        Dockerfiles, nginx.conf, deploy.sh, smoke.sh (docker-compose.yml is at the root)
-docs/          Assessment PDF, plan, QA checklist, Loom script
+docs/          Assessment PDF, plan, QA checklist
 ```

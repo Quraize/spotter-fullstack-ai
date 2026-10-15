@@ -1,5 +1,5 @@
 """
-Documentation contract: README.md, .env.example and docs/LOOM-SCRIPT.md must agree with the code.
+Documentation contract: README.md and .env.example must agree with the code.
 
 These run with the backend suite so that changing an error code, a risk threshold, a request field
 or an environment variable fails the build until the documentation follows.
@@ -201,25 +201,3 @@ def test_readme_deployment_names_every_variable_the_deploy_script_requires():
     deployment = section(read("README.md"), "Deployment")
     for var in required:
         assert var in deployment, f"{var} is required by deploy.sh but not mentioned under Deployment"
-
-
-# --- Loom script ------------------------------------------------------------------------------------
-
-
-def loom_headings() -> list[str]:
-    return re.findall(r"^## (.+)$", read("docs/LOOM-SCRIPT.md"), re.M)
-
-
-def test_loom_script_is_timed_for_five_to_ten_minutes():
-    timed = [re.search(r"\((\d+):(\d{2})\)\s*$", heading) for heading in loom_headings()]
-    assert timed and all(timed), "every section heading ends with its duration, e.g. '(1:30)'"
-    total = sum(int(m.group(1)) * 60 + int(m.group(2)) for m in timed)
-    assert 5 * 60 <= total <= 10 * 60, f"script runs {total // 60}:{total % 60:02d}; the PDF asks for 5-10 min"
-
-
-def test_loom_script_follows_the_demo_order_from_the_plan():
-    headings = [h.lower() for h in loom_headings()]
-    order = ["input", "route", "checkpoint", "recommend", "heatmap", "code"]
-    positions = [next(i for i, h in enumerate(headings) if word in h) for word in order]
-    assert positions == sorted(positions), f"sections out of order: {list(zip(order, positions, strict=True))}"
-    assert any("slider" in h or "48" in h for h in headings), "the 0-48 h slider has its own moment"

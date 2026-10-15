@@ -91,7 +91,7 @@ Current versions: Django 6.1.2, DRF 3.18.3, React 19.3, Vite 8.3, MapLibre 6.13,
 frontend/  React 19 + TypeScript + Vite + MapLibre GL (react-map-gl/maplibre), OpenFreeMap tiles
 backend/   Django + DRF; apps: routing (domain logic, pure python), providers (tomtom, openmeteo), api
 deploy/    Dockerfiles, docker-compose.yml, nginx.conf, .env.example, deploy.sh
-docs/      PDF, PLAN.md, LOOM-SCRIPT.md
+docs/      PDF, PLAN.md, QA.md
 ```
 
 Single API call drives the UI:
